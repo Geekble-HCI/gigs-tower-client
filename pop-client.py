@@ -2,6 +2,7 @@ import pygame
 import sys
 import time
 import threading
+import queue
 
 class GameState:
     WAITING = "WAITING"
@@ -33,6 +34,9 @@ class CalorieMachine:
         self.timer_thread = None  # 먼저 timer_thread 초기화
         self.current_state = GameState.WAITING
         self.countdown = 10
+        
+        # 메시지 큐 추가
+        self.message_queue = queue.Queue()
 
     def reset(self):
         """게임 상태 초기화"""
@@ -56,9 +60,13 @@ class CalorieMachine:
             y += 80
 
     def update_screen(self, text):
-        self.screen.blit(self.bg_image, (0, 0))
-        self.draw_text(text)
-        pygame.display.flip()
+        # 메인 스레드에서만 화면 업데이트
+        if threading.current_thread() is threading.main_thread():
+            self.screen.blit(self.bg_image, (0, 0))
+            self.draw_text(text)
+            pygame.display.flip()
+        else:
+            self.message_queue.put(text)
 
     def show_waiting_screen(self):
         self.reset()  # 모든 값 초기화
@@ -87,7 +95,7 @@ class CalorieMachine:
         
         def countdown_timer():
             while self.countdown > 0 and self.current_state == GameState.COUNTDOWN:
-                self.update_screen(f"게임이 곧 시작됩니다\n\n카운트다운: {self.countdown}")
+                self.message_queue.put(f"게임이 곧 시작됩니다\n\n카운트다운: {self.countdown}")
                 self.countdown -= 1
                 time.sleep(1)
             if self.current_state == GameState.COUNTDOWN:
@@ -118,6 +126,16 @@ class CalorieMachine:
         running = True
         while running:
             running = self.handle_events()
+            
+            # 메시지 큐 처리
+            try:
+                while True:
+                    message = self.message_queue.get_nowait()
+                    self.screen.blit(self.bg_image, (0, 0))
+                    self.draw_text(message)
+                    pygame.display.flip()
+            except queue.Empty:
+                pass
             
             if self.current_state == GameState.WAITING:
                 self.update_screen("--- 칼로링머신 ---\n\nA키를 눌러 시작하세요")
