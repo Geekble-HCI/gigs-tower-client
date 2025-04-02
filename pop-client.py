@@ -1,6 +1,7 @@
+import pygame
+import sys
 import time
 import threading
-import keyboard
 
 class GameState:
     WAITING = "WAITING"
@@ -10,65 +11,121 @@ class GameState:
 
 class CalorieMachine:
     def __init__(self):
+        pygame.init()
+        
+        # 전체화면 설정
+        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        self.width = self.screen.get_width()
+        self.height = self.screen.get_height()
+        
+        # 배경 이미지 로드 및 크기 조정
+        self.bg_image = pygame.image.load("Image/bg.png")
+        self.bg_image = pygame.transform.scale(self.bg_image, (self.width, self.height))
+        
+        # 한글 폰트 설정
+        try:
+            self.font = pygame.font.Font("Font/DNFBitBitv2.ttf", 74)
+        except:
+            print("폰트 로드 실패, 기본 폰트 사용")
+            self.font = pygame.font.Font(None, 74)
+        
+        # 게임 상태 변수 초기화
+        self.timer_thread = None  # 먼저 timer_thread 초기화
         self.current_state = GameState.WAITING
         self.countdown = 10
+
+    def reset(self):
+        """게임 상태 초기화"""
+        # 스레드가 실행 중이면 정리
+        if hasattr(self, 'timer_thread') and self.timer_thread and self.timer_thread.is_alive():
+            self.timer_thread.join(0)
+        
         self.timer_thread = None
+        self.current_state = GameState.WAITING
+        self.countdown = 10
+
+    def draw_text(self, text):
+        # 여러 줄 텍스트 처리
+        lines = text.split('\n')
+        y = self.height // 2 - (len(lines) * 40)
+        
+        for line in lines:
+            text_surface = self.font.render(line, True, (0, 255, 0))  # RGB for #00FF00
+            text_rect = text_surface.get_rect(center=(self.width//2, y))
+            self.screen.blit(text_surface, text_rect)
+            y += 80
+
+    def update_screen(self, text):
+        self.screen.blit(self.bg_image, (0, 0))
+        self.draw_text(text)
+        pygame.display.flip()
 
     def show_waiting_screen(self):
-        print("\n--- 칼로링머신 ---")
-        print("게임을 시작하려면 A키를 누르세요.")
+        self.reset()  # 모든 값 초기화
+        self.update_screen("--- 칼로링머신 ---\n\nA키를 눌러 시작하세요")
+
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return False
+                if event.key == pygame.K_a:
+                    if self.current_state == GameState.SCORE:
+                        self.show_waiting_screen()  # reset 호출됨
+                    elif self.current_state == GameState.WAITING:
+                        self.start_countdown()
+                if event.key == pygame.K_b:
+                    if self.current_state == GameState.PLAYING:
+                        self.show_score()
+        return True
 
     def start_countdown(self):
         self.current_state = GameState.COUNTDOWN
         self.countdown = 10
-        print("\n게임이 곧 시작됩니다.")
         
         def countdown_timer():
             while self.countdown > 0 and self.current_state == GameState.COUNTDOWN:
-                print(f"카운트다운: {self.countdown}")
+                self.update_screen(f"게임이 곧 시작됩니다\n\n카운트다운: {self.countdown}")
                 self.countdown -= 1
                 time.sleep(1)
             if self.current_state == GameState.COUNTDOWN:
                 self.start_game()
 
         self.timer_thread = threading.Thread(target=countdown_timer)
+        self.timer_thread.daemon = True
         self.timer_thread.start()
 
     def start_game(self):
         self.current_state = GameState.PLAYING
-        print("\n게임 진행 중...")
+        self.update_screen("게임 진행 중...")
 
     def show_score(self):
         self.current_state = GameState.SCORE
-        print("\n당신의 점수는? 100점")
-        print("태그를 하여 점수를 획득하세요!")
+        self.update_screen("당신의 점수는? 100점\n\n태그를 하여 점수를 획득하세요!")
         
         def auto_return():
             time.sleep(10)
             if self.current_state == GameState.SCORE:
                 self.current_state = GameState.WAITING
-                self.show_waiting_screen()
 
         self.timer_thread = threading.Thread(target=auto_return)
+        self.timer_thread.daemon = True
         self.timer_thread.start()
 
-    def handle_key_press(self, key):
-        if key == 'a':
-            if self.current_state in [GameState.WAITING, GameState.SCORE]:
-                self.start_countdown()
-        elif key == 'b':
-            if self.current_state == GameState.PLAYING:
-                self.show_score()
-
     def run(self):
-        self.show_waiting_screen()
+        running = True
+        while running:
+            running = self.handle_events()
+            
+            if self.current_state == GameState.WAITING:
+                self.update_screen("--- 칼로링머신 ---\n\nA키를 눌러 시작하세요")
+            
+            pygame.time.wait(10)
         
-        keyboard.on_press(lambda e: self.handle_key_press(e.name))
-        
-        try:
-            keyboard.wait('esc')  # esc 키를 누르면 프로그램 종료
-        except KeyboardInterrupt:
-            pass
+        pygame.quit()
+        sys.exit()
 
 if __name__ == "__main__":
     game = CalorieMachine()
