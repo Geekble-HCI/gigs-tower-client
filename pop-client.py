@@ -25,7 +25,7 @@ class CalorieMachine:
         
         # 한글 폰트 설정
         try:
-            self.font = pygame.font.Font("Font/DNFBitBitv2.ttf", 74)
+            self.font = pygame.font.Font("Font/RoundSquare.ttf", 74)
         except:
             print("폰트 로드 실패, 기본 폰트 사용")
             self.font = pygame.font.Font(None, 74)
@@ -70,7 +70,7 @@ class CalorieMachine:
 
     def show_waiting_screen(self):
         self.reset()  # 모든 값 초기화
-        self.update_screen("--- 칼로링머신 ---\n\nA키를 눌러 시작하세요")
+        self.update_screen("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -95,7 +95,7 @@ class CalorieMachine:
         
         def countdown_timer():
             while self.countdown > 0 and self.current_state == GameState.COUNTDOWN:
-                self.message_queue.put(f"게임이 곧 시작됩니다\n\n카운트다운: {self.countdown}")
+                self.message_queue.put(f"게임이 곧 시작됩니다.\n\n{self.countdown}")
                 self.countdown -= 1
                 time.sleep(1)
             if self.current_state == GameState.COUNTDOWN:
@@ -111,7 +111,7 @@ class CalorieMachine:
 
     def show_score(self):
         self.current_state = GameState.SCORE
-        self.update_screen("당신의 점수는? 100점\n\n태그를 하여 점수를 획득하세요!")
+        self.update_screen("당신의 점수는?\n\n100\n\n태그를 하여\n점수를 획득하세요!")
         
         def auto_return():
             time.sleep(10)
@@ -138,7 +138,7 @@ class CalorieMachine:
                 pass
             
             if self.current_state == GameState.WAITING:
-                self.update_screen("--- 칼로링머신 ---\n\nA키를 눌러 시작하세요")
+                self.update_screen("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
             
             pygame.time.wait(10)
         
