@@ -92,20 +92,24 @@ class CalorieMachine:
         """TCP 연결 설정"""
         try:
             self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.tcp_socket.connect((HOST, PORT))
-            print(f"TCP connection established to {HOST}:{PORT}")
-        except ConnectionRefusedError:
-            print(f"Connection refused - Please check if server is running on {HOST}:{PORT}")
-            self.tcp_socket = None
+            self.tcp_socket.bind((HOST, PORT))
+            self.tcp_socket.listen(1)
+            print(f"TCP server started. Listening on port {PORT}...")
+            
+            # 클라이언트 연결 대기
+            self.client_socket, addr = self.tcp_socket.accept()
+            print(f"[Connected] {addr}")
+            
         except Exception as e:
-            print(f"TCP connection failed: {e}")
+            print(f"TCP server setup failed: {e}")
             self.tcp_socket = None
+            self.client_socket = None
 
     def SendMessage(self, message):
         """TCP 메시지 전송"""
-        if self.tcp_socket:
+        if hasattr(self, 'client_socket') and self.client_socket:
             try:
-                self.tcp_socket.sendall(message.encode())
+                self.client_socket.sendall(message.encode())
                 print(f"[Sent] {message}")
             except Exception as e:
                 print(f"Failed to send message: {e}")
@@ -119,9 +123,9 @@ class CalorieMachine:
         """TCP 메시지 모니터링"""
         def tcp_monitor():
             while True:
-                if self.tcp_socket:
+                if hasattr(self, 'client_socket') and self.client_socket:
                     try:
-                        data = self.tcp_socket.recv(1024)
+                        data = self.client_socket.recv(1024)
                         if data:
                             message = data.decode()
                             self.OnReceivedMessage(message)
@@ -266,6 +270,8 @@ class CalorieMachine:
         """클래스 소멸자: 리소스 정리"""
         if self.serial_port and self.serial_port.is_open:
             self.serial_port.close()
+        if hasattr(self, 'client_socket') and self.client_socket:
+            self.client_socket.close()
         if self.tcp_socket:
             self.tcp_socket.close()
 
