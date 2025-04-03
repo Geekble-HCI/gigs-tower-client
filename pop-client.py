@@ -3,6 +3,8 @@ import sys
 import time
 import threading
 import queue
+import serial
+import serial.tools.list_ports
 
 class GameState:
     WAITING = "WAITING"
@@ -37,6 +39,68 @@ class CalorieMachine:
         
         # 메시지 큐 추가
         self.message_queue = queue.Queue()
+
+        # 시리얼 통신 설정
+        self.serial_port = None
+        self.excluded_ports = [
+            '/dev/cu.debug-console',
+            '/dev/cu.Bluetooth-Incoming-Port',
+            '/dev/cu.iPhone-WirelessiAP',
+            '/dev/tty.Bluetooth-Incoming-Port',
+            '/dev/tty.debug-console',
+            '/dev/cu.BT-RY'
+        ]
+        self.setup_serial()
+        self.start_serial_monitoring()
+
+    def setup_serial(self):
+        """시리얼 포트 설정"""
+        print("Setting up serial port...")
+        try:
+            ports = list(serial.tools.list_ports.comports())
+            for port in ports:
+                if port.device in self.excluded_ports:
+                    print(f"Skipping excluded port: {port.device}")
+                    continue
+                    
+                try:
+                    self.serial_port = serial.Serial(port.device, 115200, timeout=1)
+                    print(f"Connected to {port.device}")
+                    break
+                except:
+                    print(f"Failed to connect to {port.device}")
+                    continue
+                    
+            if not self.serial_port:
+                print("No suitable serial port found")
+                
+        except Exception as e:
+            print(f"Serial port error: {e}")
+
+    def start_serial_monitoring(self):
+        """시리얼 모니터링 시작"""
+        def serial_monitor():
+            while True:
+                if self.serial_port and self.serial_port.is_open:
+                    try:
+                        if self.serial_port.in_waiting:
+                            received_data = self.serial_port.readline().decode().strip()
+                            if received_data == 'a':
+                                self.handle_input('a')
+                    except:
+                        pass
+                time.sleep(0.1)
+
+        serial_thread = threading.Thread(target=serial_monitor, daemon=True)
+        serial_thread.start()
+
+    def handle_input(self, input_value):
+        """키보드와 시리얼 입력 모두 처리"""
+        if input_value == 'a':
+            if self.current_state == GameState.SCORE:
+                self.show_waiting_screen()
+            elif self.current_state == GameState.WAITING:
+                self.start_countdown()
 
     def reset(self):
         """게임 상태 초기화"""
@@ -80,10 +144,7 @@ class CalorieMachine:
                 if event.key == pygame.K_ESCAPE:
                     return False
                 if event.key == pygame.K_a:
-                    if self.current_state == GameState.SCORE:
-                        self.show_waiting_screen()  # reset 호출됨
-                    elif self.current_state == GameState.WAITING:
-                        self.start_countdown()
+                    self.handle_input('a')
                 if event.key == pygame.K_b:
                     if self.current_state == GameState.PLAYING:
                         self.show_score()
@@ -144,6 +205,11 @@ class CalorieMachine:
         
         pygame.quit()
         sys.exit()
+
+    def __del__(self):
+        """클래스 소멸자: 시리얼 포트 정리"""
+        if self.serial_port and self.serial_port.is_open:
+            self.serial_port.close()
 
 if __name__ == "__main__":
     game = CalorieMachine()
