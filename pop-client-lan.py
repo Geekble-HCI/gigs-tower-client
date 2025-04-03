@@ -117,7 +117,9 @@ class CalorieMachine:
     def OnReceivedMessage(self, message):
         """TCP 메시지 수신 처리"""
         print(f"[Received] {message}")
-        # 여기에 수신된 메시지에 대한 처리 로직 추가
+        if message == "b":
+            if self.current_state == GameState.PLAYING:
+                self.show_score()
         
     def start_tcp_monitoring(self):
         """TCP 메시지 모니터링"""
