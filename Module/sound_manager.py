@@ -3,7 +3,6 @@ import pygame
 class SoundManager:
     def __init__(self):
         pygame.mixer.init()
-        pygame.mixer.set_volume(1.0)  # 시스템 전체 볼륨을 최대로 설정
         self.sounds = {
             'waiting': self._load_sound('Sound/waiting.mp3'),
             'countdown': self._load_sound('Sound/countdown.mp3'),
@@ -14,9 +13,7 @@ class SoundManager:
 
     def _load_sound(self, path):
         try:
-            sound = pygame.mixer.Sound(path)
-            sound.set_volume(1.0)  # 각 사운드의 볼륨을 최대로 설정
-            return sound
+            return pygame.mixer.Sound(path)
         except:
             print(f"Failed to load sound: {path}")
             return None
