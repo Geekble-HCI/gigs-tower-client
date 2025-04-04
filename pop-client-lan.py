@@ -38,10 +38,14 @@ class CalorieMachine:
         except ValueError:
             print(f"Invalid message format: {message}")
 
+    def show_waiting_screen(self):
+        """대기 화면 표시"""
+        self.game_state.show_waiting_screen()
+        self.screen_manager.update_screen("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
 
     def run(self):
         running = True
-        self.game_state.show_waiting();
+        self.show_waiting_screen()  # 초기 대기 화면 표시
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
