@@ -38,8 +38,8 @@ class ScreenManager:
         if total_height > self.usable_height:
             y = self.MARGIN_TOP
         else:
-            # 세로형 디스플레이에 맞게 위치 조정 (전체 높이의 2/5 지점)
-            y = self.MARGIN_TOP + (self.usable_height * 2 // 5) - (len(lines) * line_spacing // 2)
+            # 화면 중앙(1/2)으로 조정
+            y = self.MARGIN_TOP + (self.usable_height // 2) - (len(lines) * line_spacing // 2)
         
         for line in lines:
             text_surface = self.font.render(line, True, (0, 255, 0))
