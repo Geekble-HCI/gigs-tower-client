@@ -4,37 +4,43 @@ import threading
 
 class ScreenManager:
     # LCD 마진 설정
-    MARGIN_LEFT = 200  # 좌측 마진
-    MARGIN_TOP = 300   # 상단 마진
+    MARGIN_LEFT = 200    # 좌측 마진
+    MARGIN_TOP = 300     # 상단 마진
+    MARGIN_RIGHT = 50   # 우측 마진
+    MARGIN_BOTTOM = 50  # 하단 마진
 
     def __init__(self):
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         self.width = self.screen.get_width()
         self.height = self.screen.get_height()
         
-        # 실제 사용 가능한 화면 크기 계산
-        self.usable_width = self.width - self.MARGIN_LEFT
-        self.usable_height = self.height - self.MARGIN_TOP
+        # 실제 사용 가능한 화면 크기 계산 (양쪽 마진 고려)
+        self.usable_width = self.width - (self.MARGIN_LEFT + self.MARGIN_RIGHT)
+        self.usable_height = self.height - (self.MARGIN_TOP + self.MARGIN_BOTTOM)
         
         # 배경 이미지를 사용 가능한 영역 크기로 조정
         self.bg_image = pygame.image.load("Image/bg.png")
         self.bg_image = pygame.transform.scale(self.bg_image, (self.usable_width, self.usable_height))
         
         try:
-            self.font = pygame.font.Font("Font/RoundSquare.ttf", 74)
+            self.font = pygame.font.Font("Font/RoundSquare.ttf", 35)
         except:
             print("폰트 로드 실패, 기본 폰트 사용")
-            self.font = pygame.font.Font(None, 74)
+            self.font = pygame.font.Font(None, 35)
         
         self.message_queue = queue.Queue()
 
     def draw_text(self, text):
         lines = text.split('\n')
-        # 마진을 고려한 시작 y 위치 계산
-        y = self.MARGIN_TOP + (self.usable_height // 2 - (len(lines) * 40))
+        # 전체 텍스트 높이가 사용 가능한 영역을 넘지 않도록 조정
+        total_height = len(lines) * 80
+        if total_height > self.usable_height:
+            y = self.MARGIN_TOP
+        else:
+            y = self.MARGIN_TOP + (self.usable_height // 2 - (len(lines) * 40))
+        
         for line in lines:
             text_surface = self.font.render(line, True, (0, 255, 0))
-            # 마진을 고려한 중앙 정렬
             text_rect = text_surface.get_rect()
             text_rect.centerx = self.MARGIN_LEFT + (self.usable_width // 2)
             text_rect.y = y
