@@ -117,9 +117,9 @@ class CalorieMachine:
     def OnReceivedMessage(self, message):
         """TCP 메시지 수신 처리"""
         print(f"[Received] {message}")
-        if message == "b":
+        if message>=0:
             if self.current_state == GameState.PLAYING:
-                self.show_score()
+                self.show_score(message)
         
     def start_tcp_monitoring(self):
         """TCP 메시지 모니터링"""
@@ -157,7 +157,7 @@ class CalorieMachine:
 
     def handle_input(self, input_value):
         """키보드와 시리얼 입력 모두 처리"""
-        self.SendMessage('a')  # 입력값을 TCP로 전송
+        self.SendMessage('-1')  # 입력값을 TCP로 전송
         if input_value == 'a':
             if self.current_state == GameState.SCORE:
                 self.show_waiting_screen()
@@ -209,7 +209,7 @@ class CalorieMachine:
                     self.handle_input('a')
                 if event.key == pygame.K_b:
                     if self.current_state == GameState.PLAYING:
-                        self.show_score()
+                        self.show_score(7176)
         return True
 
     def start_countdown(self):
@@ -232,9 +232,9 @@ class CalorieMachine:
         self.current_state = GameState.PLAYING
         self.update_screen("게임 진행 중...")
 
-    def show_score(self):
+    def show_score(self, score):
         self.current_state = GameState.SCORE
-        self.update_screen("당신의 점수는?\n\n100\n\n태그를 하여\n점수를 획득하세요!")
+        self.update_screen("당신의 점수는?\n\n"+ str(score) +"\n\n태그를 하여\n점수를 획득하세요!")
         
         def auto_return():
             time.sleep(10)
