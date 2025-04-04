@@ -32,12 +32,13 @@ class ScreenManager:
 
     def draw_text(self, text):
         lines = text.split('\n')
-        # 전체 텍스트 높이가 사용 가능한 영역을 넘지 않도록 조정
+        # 텍스트를 더 아래쪽에 표시하기 위해 계산 방식 수정
         total_height = len(lines) * 30
         if total_height > self.usable_height:
             y = self.MARGIN_TOP
         else:
-            y = self.MARGIN_TOP + (self.usable_height // 2 - (len(lines) * 40))
+            # 수직 위치를 전체 높이의 2/3 지점으로 조정
+            y = self.MARGIN_TOP + (self.usable_height * 2 // 3) - (len(lines) * 15)
         
         for line in lines:
             text_surface = self.font.render(line, True, (0, 255, 0))
