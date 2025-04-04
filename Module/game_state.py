@@ -1,5 +1,6 @@
 import threading
 import time
+from .sound_manager import SoundManager
 
 class GameState:
     WAITING = "WAITING"
@@ -13,10 +14,12 @@ class GameStateManager:
         self.countdown = 10
         self.timer_thread = None
         self.screen_update_callback = screen_update_callback
+        self.sound_manager = SoundManager()
 
     def start_countdown(self):
         self.current_state = GameState.COUNTDOWN
         self.countdown = 10
+        self.sound_manager.play_sound('countdown')
         
         def countdown_timer():
             while self.countdown > 0 and self.current_state == GameState.COUNTDOWN:
@@ -34,10 +37,12 @@ class GameStateManager:
 
     def start_game(self):
         self.current_state = GameState.PLAYING
+        self.sound_manager.play_sound('playing')
         self.screen_update_callback("게임 진행 중...")
 
     def show_score(self, score):
         self.current_state = GameState.SCORE
+        self.sound_manager.play_sound('score')
         self.screen_update_callback(f"당신의 점수는?\n\n{score}\n\n태그를 하여\n점수를 획득하세요!")
 
     def show_waiting(self):
@@ -47,4 +52,5 @@ class GameStateManager:
         if self.timer_thread and self.timer_thread.is_alive():
             self.timer_thread.join(0)
         self.timer_thread = None
+        self.sound_manager.play_sound('waiting')
         self.screen_update_callback("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
