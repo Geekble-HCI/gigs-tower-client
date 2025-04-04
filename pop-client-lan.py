@@ -1,282 +1,60 @@
 import pygame
 import sys
-import time
-import threading
-import queue
-import serial
-import serial.tools.list_ports
-import socket  # 상단에 import 추가
-
-# TCP 연결 설정
-HOST = '0.0.0.0'
-PORT = 12345
-
-class GameState:
-    WAITING = "WAITING"
-    COUNTDOWN = "COUNTDOWN"
-    PLAYING = "PLAYING"
-    SCORE = "SCORE"
+from Module.tcp_handler import TCPHandler
+from Module.serial_handler import SerialHandler
+from Module.game_state import GameState, GameStateManager
+from Module.screen_manager import ScreenManager
 
 class CalorieMachine:
     def __init__(self):
         pygame.init()
         
-        # 전체화면 설정
-        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-        self.width = self.screen.get_width()
-        self.height = self.screen.get_height()
+        self.screen_manager = ScreenManager()
+        self.game_state = GameStateManager(self.screen_manager.update_screen)
+        self.tcp_handler = TCPHandler(self.OnReceivedMessage)
+        self.serial_handler = SerialHandler(self.handle_input)
+
+        # 각 모듈 초기화
+        self.tcp_handler.setup()
+        self.tcp_handler.start_monitoring()
+        self.tcp_handler.send_message("init")
         
-        # 배경 이미지 로드 및 크기 조정
-        self.bg_image = pygame.image.load("Image/bg.png")
-        self.bg_image = pygame.transform.scale(self.bg_image, (self.width, self.height))
-        
-        # 한글 폰트 설정
-        try:
-            self.font = pygame.font.Font("Font/RoundSquare.ttf", 74)
-        except:
-            print("폰트 로드 실패, 기본 폰트 사용")
-            self.font = pygame.font.Font(None, 74)
-        
-        # 게임 상태 변수 초기화
-        self.timer_thread = None  # 먼저 timer_thread 초기화
-        self.current_state = GameState.WAITING
-        self.countdown = 10
-        
-        # 메시지 큐 추가
-        self.message_queue = queue.Queue()
-
-        # TCP 통신 설정
-        self.tcp_socket = None
-        self.setup_tcp()
-        self.start_tcp_monitoring()  # TCP 모니터링 시작
-        self.SendMessage("init")  # 초기화 메시지 전송
-        
-        # 시리얼 통신 설정
-        self.serial_port = None
-        self.excluded_ports = [
-            '/dev/cu.debug-console',
-            '/dev/cu.Bluetooth-Incoming-Port',
-            '/dev/cu.iPhone-WirelessiAP',
-            '/dev/tty.Bluetooth-Incoming-Port',
-            '/dev/tty.debug-console',
-            '/dev/cu.BT-RY'
-        ]
-        self.setup_serial()
-        self.start_serial_monitoring()
-
-    def setup_serial(self):
-        """시리얼 포트 설정"""
-        print("Setting up serial port...")
-        try:
-            ports = list(serial.tools.list_ports.comports())
-            for port in ports:
-                if port.device in self.excluded_ports:
-                    print(f"Skipping excluded port: {port.device}")
-                    continue
-                    
-                try:
-                    self.serial_port = serial.Serial(port.device, 115200, timeout=1)
-                    print(f"Connected to {port.device}")
-                    break
-                except:
-                    print(f"Failed to connect to {port.device}")
-                    continue
-                    
-            if not self.serial_port:
-                print("No suitable serial port found")
-                
-        except Exception as e:
-            print(f"Serial port error: {e}")
-
-    def setup_tcp(self):
-        """TCP 연결 설정"""
-        try:
-            self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.tcp_socket.bind((HOST, PORT))
-            self.tcp_socket.listen(1)
-            print(f"TCP server started. Listening on port {PORT}...")
-            
-            # 클라이언트 연결 대기
-            self.client_socket, addr = self.tcp_socket.accept()
-            print(f"[Connected] {addr}")
-            
-        except Exception as e:
-            print(f"TCP server setup failed: {e}")
-            self.tcp_socket = None
-            self.client_socket = None
-
-    def SendMessage(self, message):
-        """TCP 메시지 전송"""
-        if hasattr(self, 'client_socket') and self.client_socket:
-            try:
-                self.client_socket.sendall(message.encode())
-                print(f"[Sent] {message}")
-            except Exception as e:
-                print(f"Failed to send message: {e}")
-
-    def OnReceivedMessage(self, message):
-        """TCP 메시지 수신 처리"""
-        print(f"[Received] {message}")
-        score = int(message)
-        if score>=0:
-            if self.current_state == GameState.PLAYING:
-                self.show_score(score)
-        
-    def start_tcp_monitoring(self):
-        """TCP 메시지 모니터링"""
-        def tcp_monitor():
-            while True:
-                if hasattr(self, 'client_socket') and self.client_socket:
-                    try:
-                        data = self.client_socket.recv(1024)
-                        if data:
-                            message = data.decode()
-                            self.OnReceivedMessage(message)
-                    except:
-                        pass
-                time.sleep(0.1)
-
-        tcp_thread = threading.Thread(target=tcp_monitor, daemon=True)
-        tcp_thread.start()
-
-    def start_serial_monitoring(self):
-        """시리얼 모니터링 시작"""
-        def serial_monitor():
-            while True:
-                if self.serial_port and self.serial_port.is_open:
-                    try:
-                        if self.serial_port.in_waiting:
-                            received_data = self.serial_port.readline().decode().strip()
-                            if received_data == 'a':
-                                self.handle_input('a')
-                    except:
-                        pass
-                time.sleep(0.1)
-
-        serial_thread = threading.Thread(target=serial_monitor, daemon=True)
-        serial_thread.start()
+        self.serial_handler.setup()
+        self.serial_handler.start_monitoring()
 
     def handle_input(self, input_value):
-        """키보드와 시리얼 입력 모두 처리"""
-        self.SendMessage('-1')  # 입력값을 TCP로 전송
+        self.tcp_handler.send_message('-1')
         if input_value == 'a':
-            if self.current_state == GameState.SCORE:
+            if self.game_state.current_state == GameState.SCORE:
                 self.show_waiting_screen()
-            elif self.current_state == GameState.WAITING:
-                self.start_countdown()
+            elif self.game_state.current_state == GameState.WAITING:
+                self.game_state.start_countdown()
 
-    def reset(self):
-        """게임 상태 초기화"""
-        # 스레드가 실행 중이면 정리
-        if hasattr(self, 'timer_thread') and self.timer_thread and self.timer_thread.is_alive():
-            self.timer_thread.join(0)
-        
-        self.timer_thread = None
-        self.current_state = GameState.WAITING
-        self.countdown = 10
-
-    def draw_text(self, text):
-        # 여러 줄 텍스트 처리
-        lines = text.split('\n')
-        y = self.height // 2 - (len(lines) * 40)
-        
-        for line in lines:
-            text_surface = self.font.render(line, True, (0, 255, 0))  # RGB for #00FF00
-            text_rect = text_surface.get_rect(center=(self.width//2, y))
-            self.screen.blit(text_surface, text_rect)
-            y += 80
-
-    def update_screen(self, text):
-        # 메인 스레드에서만 화면 업데이트
-        if threading.current_thread() is threading.main_thread():
-            self.screen.blit(self.bg_image, (0, 0))
-            self.draw_text(text)
-            pygame.display.flip()
-        else:
-            self.message_queue.put(text)
-
-    def show_waiting_screen(self):
-        self.reset()  # 모든 값 초기화
-        self.update_screen("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
-
-    def handle_events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    return False
-                if event.key == pygame.K_a:
-                    self.handle_input('a')
-                if event.key == pygame.K_b:
-                    if self.current_state == GameState.PLAYING:
-                        self.show_score(7176)
-        return True
-
-    def start_countdown(self):
-        self.current_state = GameState.COUNTDOWN
-        self.countdown = 10
-        
-        def countdown_timer():
-            while self.countdown > 0 and self.current_state == GameState.COUNTDOWN:
-                self.message_queue.put(f"게임이 곧 시작됩니다.\n\n{self.countdown}")
-                self.countdown -= 1
-                time.sleep(1)
-            if self.current_state == GameState.COUNTDOWN:
-                self.start_game()
-
-        self.timer_thread = threading.Thread(target=countdown_timer)
-        self.timer_thread.daemon = True
-        self.timer_thread.start()
-
-    def start_game(self):
-        self.current_state = GameState.PLAYING
-        self.update_screen("게임 진행 중...")
-
-    def show_score(self, score):
-        self.current_state = GameState.SCORE
-        self.update_screen("당신의 점수는?\n\n"+ str(score) +"\n\n태그를 하여\n점수를 획득하세요!")
-        
-        def auto_return():
-            time.sleep(10)
-            if self.current_state == GameState.SCORE:
-                self.current_state = GameState.WAITING
-
-        self.timer_thread = threading.Thread(target=auto_return)
-        self.timer_thread.daemon = True
-        self.timer_thread.start()
+    def OnReceivedMessage(self, message):
+        try:
+            score = int(message)
+            if score >= 0 and self.game_state.current_state == GameState.PLAYING:
+                self.game_state.show_score(score)
+        except ValueError:
+            print(f"Invalid message format: {message}")
 
     def run(self):
         running = True
         while running:
-            running = self.handle_events()
-            
-            # 메시지 큐 처리
-            try:
-                while True:
-                    message = self.message_queue.get_nowait()
-                    self.screen.blit(self.bg_image, (0, 0))
-                    self.draw_text(message)
-                    pygame.display.flip()
-            except queue.Empty:
-                pass
-            
-            if self.current_state == GameState.WAITING:
-                self.update_screen("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
-            
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                    running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_a:
+                        self.handle_input('a')
+                    elif event.key == pygame.K_b and self.game_state.current_state == GameState.PLAYING:
+                        self.game_state.show_score(7176)
+
+            self.screen_manager.process_message_queue()
             pygame.time.wait(10)
-        
+
         pygame.quit()
         sys.exit()
-
-    def __del__(self):
-        """클래스 소멸자: 리소스 정리"""
-        if self.serial_port and self.serial_port.is_open:
-            self.serial_port.close()
-        if hasattr(self, 'client_socket') and self.client_socket:
-            self.client_socket.close()
-        if self.tcp_socket:
-            self.tcp_socket.close()
 
 if __name__ == "__main__":
     game = CalorieMachine()
