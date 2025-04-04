@@ -32,13 +32,14 @@ class ScreenManager:
 
     def draw_text(self, text):
         lines = text.split('\n')
-        # 텍스트를 더 아래쪽에 표시하기 위해 계산 방식 수정
-        total_height = len(lines) * 30
+        line_spacing = 40  # 줄 간격 증가
+        total_height = len(lines) * line_spacing
+        
         if total_height > self.usable_height:
             y = self.MARGIN_TOP
         else:
-            # 수직 위치를 전체 높이의 2/3 지점으로 조정
-            y = self.MARGIN_TOP + (self.usable_height * 2 // 3) - (len(lines) * 15)
+            # 세로형 디스플레이에 맞게 위치 조정 (전체 높이의 2/5 지점)
+            y = self.MARGIN_TOP + (self.usable_height * 2 // 5) - (len(lines) * line_spacing // 2)
         
         for line in lines:
             text_surface = self.font.render(line, True, (0, 255, 0))
@@ -46,7 +47,7 @@ class ScreenManager:
             text_rect.centerx = self.MARGIN_LEFT + (self.usable_width // 2)
             text_rect.y = y
             self.screen.blit(text_surface, text_rect)
-            y += 30
+            y += line_spacing
 
     def update_screen(self, text):
         if threading.current_thread() is threading.main_thread():
