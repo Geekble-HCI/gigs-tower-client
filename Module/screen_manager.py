@@ -4,10 +4,10 @@ import threading
 
 class ScreenManager:
     # LCD 마진 설정
-    MARGIN_LEFT = 200    # 좌측 마진
-    MARGIN_TOP = 300     # 상단 마진
-    MARGIN_RIGHT = 50   # 우측 마진
-    MARGIN_BOTTOM = 50  # 하단 마진
+    MARGIN_LEFT = 68    # 좌측 마진
+    MARGIN_TOP = 248     # 상단 마진
+    MARGIN_RIGHT = 48   # 우측 마진
+    MARGIN_BOTTOM = 38  # 하단 마진
 
     def __init__(self):
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
@@ -23,17 +23,17 @@ class ScreenManager:
         self.bg_image = pygame.transform.scale(self.bg_image, (self.usable_width, self.usable_height))
         
         try:
-            self.font = pygame.font.Font("Font/RoundSquare.ttf", 35)
+            self.font = pygame.font.Font("Font/RoundSquare.ttf", 30)
         except:
             print("폰트 로드 실패, 기본 폰트 사용")
-            self.font = pygame.font.Font(None, 35)
+            self.font = pygame.font.Font(None, 30)
         
         self.message_queue = queue.Queue()
 
     def draw_text(self, text):
         lines = text.split('\n')
         # 전체 텍스트 높이가 사용 가능한 영역을 넘지 않도록 조정
-        total_height = len(lines) * 80
+        total_height = len(lines) * 30
         if total_height > self.usable_height:
             y = self.MARGIN_TOP
         else:
@@ -45,7 +45,7 @@ class ScreenManager:
             text_rect.centerx = self.MARGIN_LEFT + (self.usable_width // 2)
             text_rect.y = y
             self.screen.blit(text_surface, text_rect)
-            y += 80
+            y += 30
 
     def update_screen(self, text):
         if threading.current_thread() is threading.main_thread():
