@@ -40,10 +40,11 @@ class GameStateManager:
         self.current_state = GameState.SCORE
         self.screen_update_callback(f"당신의 점수는?\n\n{score}\n\n태그를 하여\n점수를 획득하세요!")
 
-    def show_waiting_screen(self):
+    def show_waiting(self):
         """게임 상태를 대기 상태로 초기화"""
         self.current_state = GameState.WAITING
         self.countdown = 10
         if self.timer_thread and self.timer_thread.is_alive():
             self.timer_thread.join(0)
         self.timer_thread = None
+        self.screen_update_callback("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")

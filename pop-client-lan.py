@@ -26,7 +26,7 @@ class CalorieMachine:
         self.tcp_handler.send_message('-1')
         if input_value == 'a':
             if self.game_state.current_state == GameState.SCORE:
-                self.show_waiting_screen()
+                self.game_state.show_waiting()
             elif self.game_state.current_state == GameState.WAITING:
                 self.game_state.start_countdown()
 
@@ -38,14 +38,9 @@ class CalorieMachine:
         except ValueError:
             print(f"Invalid message format: {message}")
 
-    def show_waiting_screen(self):
-        """대기 화면 표시"""
-        self.game_state.show_waiting_screen()
-        self.screen_manager.update_screen("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
-
     def run(self):
         running = True
-        self.show_waiting_screen()  # 초기 대기 화면 표시
+        self.game_state.show_waiting()  # 초기 대기 화면 표시
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
