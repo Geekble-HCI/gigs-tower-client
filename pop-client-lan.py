@@ -45,6 +45,8 @@ class CalorieMachine:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     running = False
+                    pygame.quit()
+                    sys.exit()
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_a:
                         self.handle_input('a')
@@ -53,9 +55,6 @@ class CalorieMachine:
 
             self.screen_manager.process_message_queue()
             pygame.time.wait(10)
-
-        pygame.quit()
-        sys.exit()
 
 if __name__ == "__main__":
     game = CalorieMachine()

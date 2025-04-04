@@ -1,6 +1,8 @@
 contourpy==1.2.1
 cycler==0.12.1
 fonttools==4.52.4
+future==1.0.0
+iso8601==2.1.0
 keyboard==0.13.5
 kiwisolver==1.4.5
 matplotlib==3.9.0
@@ -166,5 +168,8 @@ pyobjc-framework-Virtualization==11.0
 pyobjc-framework-Vision==11.0
 pyobjc-framework-WebKit==11.0
 pyparsing==3.1.2
+pyserial==3.5
 python-dateutil==2.9.0.post0
+PyYAML==6.0.2
+serial==0.0.97
 six==1.16.0
