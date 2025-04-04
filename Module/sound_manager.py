@@ -24,7 +24,7 @@ class SoundManager:
         
         sound = self.sounds.get(sound_name)
         if sound:
-            sound.play(-1)  # -1은 무한 반복
+            sound.play(0)  # 0은 한번만 재생
             self.current_sound = sound
 
     def stop_sound(self):
