@@ -7,6 +7,7 @@ class GameState:
     COUNTDOWN = "COUNTDOWN"
     PLAYING = "PLAYING"
     SCORE = "SCORE"
+    RESULT = "RESULT"  # 새로운 상태 추가
 
 class GameStateManager:
     def __init__(self, screen_update_callback):
@@ -15,6 +16,7 @@ class GameStateManager:
         self.timer_thread = None
         self.screen_update_callback = screen_update_callback
         self.sound_manager = SoundManager()
+        self.result_thread = None
 
     def start_countdown(self):
         self.current_state = GameState.COUNTDOWN
@@ -44,6 +46,21 @@ class GameStateManager:
         self.current_state = GameState.SCORE
         self.sound_manager.play_sound('score')
         self.screen_update_callback(f"당신의 점수는?\n\n{score}\n\n태그를 하여\n점수를 획득하세요!")
+
+    def show_result(self, score):
+        self.current_state = GameState.RESULT
+        self.screen_update_callback(f"{score}점을\n획득했습니다!")
+        
+        def result_timer():
+            time.sleep(3)  # 3초 대기
+            if self.current_state == GameState.RESULT:
+                self.show_waiting()
+        
+        if self.result_thread and self.result_thread.is_alive():
+            self.result_thread.join(0)
+        self.result_thread = threading.Thread(target=result_timer)
+        self.result_thread.daemon = True
+        self.result_thread.start()
 
     def show_waiting(self):
         """게임 상태를 대기 상태로 초기화"""

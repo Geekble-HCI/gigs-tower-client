@@ -18,7 +18,7 @@ class CalorieMachine:
     def handle_input(self, input_value):
         if input_value == 'a':
             if self.game_state.current_state == GameState.SCORE:
-                self.game_state.show_waiting()
+                self.game_state.show_result(7176)  # 점수를 전달하여 결과 화면으로
             elif self.game_state.current_state == GameState.WAITING:
                 self.game_state.start_countdown()
 
