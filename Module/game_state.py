@@ -50,6 +50,7 @@ class GameStateManager:
 
     def show_result(self, score):
         self.current_state = GameState.RESULT
+        self.sound_manager.play_sound('result')
         self.screen_update_callback(f"{score}점을\n획득했습니다!")
         
         def result_timer():
@@ -76,5 +77,5 @@ class GameStateManager:
     def show_init(self):
         """초기화 상태 표시"""
         self.current_state = GameState.INIT
-        self.sound_manager.play_sound('waiting')  # 대기 사운드 재생
+        self.sound_manager.play_sound('init')  # 대기 사운드 재생
         self.screen_update_callback("시스템 초기화 중...")
