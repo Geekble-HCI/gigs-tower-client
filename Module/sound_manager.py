@@ -29,6 +29,15 @@ class SoundManager:
             sound.play(0)  # 0은 한번만 재생
             self.current_sound = sound
 
+    def play_sound_loop(self, sound_name):
+        if self.current_sound:
+            self.current_sound.stop()
+        
+        sound = self.sounds.get(sound_name)
+        if sound:
+            sound.play(-1)
+            self.current_sound = sound
+
     def stop_sound(self):
         if self.current_sound:
             self.current_sound.stop()

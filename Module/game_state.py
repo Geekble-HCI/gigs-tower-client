@@ -22,7 +22,7 @@ class GameStateManager:
     def start_countdown(self):
         self.current_state = GameState.COUNTDOWN
         self.countdown = 10
-        self.sound_manager.play_sound('countdown')
+        self.sound_manager.play_sound_loop('countdown')
         
         def countdown_timer():
             while self.countdown > 0 and self.current_state == GameState.COUNTDOWN:
@@ -40,7 +40,7 @@ class GameStateManager:
 
     def start_game(self):
         self.current_state = GameState.PLAYING
-        self.sound_manager.play_sound('playing')
+        self.sound_manager.play_sound_loop('playing')
         self.screen_update_callback("게임 진행 중...")
 
     def show_score(self, score):
@@ -71,11 +71,11 @@ class GameStateManager:
         if self.timer_thread and self.timer_thread.is_alive():
             self.timer_thread.join(0)
         self.timer_thread = None
-        self.sound_manager.play_sound('waiting')
+        self.sound_manager.play_sound_loop('waiting')
         self.screen_update_callback("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
 
     def show_init(self):
         """초기화 상태 표시"""
         self.current_state = GameState.INIT
-        self.sound_manager.play_sound('init')  # 대기 사운드 재생
+        self.sound_manager.play_sound_loop('init')  # 대기 사운드 재생
         self.screen_update_callback("시스템 초기화 중...")
