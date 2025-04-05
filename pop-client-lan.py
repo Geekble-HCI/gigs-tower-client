@@ -14,13 +14,29 @@ class CalorieMachine:
         self.tcp_handler = TCPHandler(self.OnReceivedMessage)
         self.serial_handler = SerialHandler(self.handle_input)
 
-        # 각 모듈 초기화
+        # 초기화 상태 표시
+        self.game_state.show_init()
+
+        # 각 모듈 초기화 시작
         self.tcp_handler.setup()
-        self.tcp_handler.start_monitoring()
-        self.tcp_handler.send_message("init")
-        
         self.serial_handler.setup()
+        
+        # 모니터링 시작
+        self.tcp_handler.start_monitoring()
         self.serial_handler.start_monitoring()
+
+    def wait_for_connections(self):
+        """모든 연결이 준비될 때까지 대기"""
+        while not (self.tcp_handler.is_ready() and self.serial_handler.is_ready()):
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                    pygame.quit()
+                    sys.exit()
+            self.screen_manager.process_message_queue()
+            pygame.time.wait(100)
+        
+        # 모든 연결이 준비되면 WAITING 상태로 전환
+        self.game_state.show_waiting()
 
     def handle_input(self, input_value):
         self.tcp_handler.send_message('-1')
@@ -39,8 +55,10 @@ class CalorieMachine:
             print(f"Invalid message format: {message}")
 
     def run(self):
+        # 연결 대기
+        self.wait_for_connections()
+        
         running = True
-        self.game_state.show_waiting()  # 초기 대기 화면 표시
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):

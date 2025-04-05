@@ -15,26 +15,36 @@ class SerialHandler:
             '/dev/tty.debug-console',
             '/dev/cu.BT-RY'
         ]
+        self.is_connected = False
+        self.setup_thread = None
 
     def setup(self):
-        print("Setting up serial port...")
-        try:
-            ports = list(serial.tools.list_ports.comports())
-            for port in ports:
-                if port.device in self.excluded_ports:
-                    print(f"Skipping excluded port: {port.device}")
-                    continue
+        def setup_worker():
+            while not self.is_connected:
                 try:
-                    self.serial_port = serial.Serial(port.device, 115200, timeout=1)
-                    print(f"Connected to {port.device}")
-                    return True
-                except:
-                    print(f"Failed to connect to {port.device}")
-            print("No suitable serial port found")
-            return False
-        except Exception as e:
-            print(f"Serial port error: {e}")
-            return False
+                    ports = list(serial.tools.list_ports.comports())
+                    for port in ports:
+                        if port.device in self.excluded_ports:
+                            continue
+                        try:
+                            self.serial_port = serial.Serial(port.device, 115200, timeout=1)
+                            print(f"Connected to {port.device}")
+                            self.is_connected = True
+                            return
+                        except:
+                            print(f"Failed to connect to {port.device}")
+                    print("No suitable serial port found, retrying...")
+                except Exception as e:
+                    print(f"Serial port error: {e}")
+                time.sleep(1)  # 1초 대기 후 재시도
+
+        self.setup_thread = threading.Thread(target=setup_worker, daemon=True)
+        self.setup_thread.start()
+        return True  # 즉시 True 반환하고 백그라운드에서 연결 시도
+
+    def is_ready(self):
+        """시리얼 연결이 준비되었는지 확인"""
+        return self.is_connected
 
     def start_monitoring(self):
         def serial_monitor():

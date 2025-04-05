@@ -3,6 +3,7 @@ import time
 from .sound_manager import SoundManager
 
 class GameState:
+    INIT = "INIT"  # 새로운 상태 추가
     WAITING = "WAITING"
     COUNTDOWN = "COUNTDOWN"
     PLAYING = "PLAYING"
@@ -11,7 +12,7 @@ class GameState:
 
 class GameStateManager:
     def __init__(self, screen_update_callback):
-        self.current_state = GameState.WAITING
+        self.current_state = GameState.INIT  # 초기 상태를 INIT으로 변경
         self.countdown = 10
         self.timer_thread = None
         self.screen_update_callback = screen_update_callback
@@ -71,3 +72,9 @@ class GameStateManager:
         self.timer_thread = None
         self.sound_manager.play_sound('waiting')
         self.screen_update_callback("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
+
+    def show_init(self):
+        """초기화 상태 표시"""
+        self.current_state = GameState.INIT
+        self.sound_manager.play_sound('waiting')  # 대기 사운드 재생
+        self.screen_update_callback("시스템 초기화 중...")
