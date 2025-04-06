@@ -11,12 +11,12 @@ class GameState:
     RESULT = "RESULT"  # 새로운 상태 추가
 
 class GameStateManager:
-    def __init__(self, screen_update_callback, state_change_callback=None):
+    def __init__(self, screen_update_callback, state_change_callback=None, game_type=1):
         self.current_state = GameState.INIT  # 초기 상태를 INIT으로 변경
         self.countdown = 10
         self.timer_thread = None
         self.screen_update_callback = screen_update_callback
-        self.sound_manager = SoundManager()
+        self.sound_manager = SoundManager(game_type)  # game_type 전달
         self.result_thread = None
         self.score_thread = None  # Add score timeout thread
         self.state_change_callback = state_change_callback  # 상태 변경 콜백 추가
@@ -25,7 +25,7 @@ class GameStateManager:
     def start_countdown(self):
         self.current_state = GameState.COUNTDOWN
         self.countdown = 10
-        self.sound_manager.play_sound_loop('countdown')
+        self.sound_manager.play_sound('countdown')
         
         def countdown_timer():
             while self.countdown > 0 and self.current_state == GameState.COUNTDOWN:

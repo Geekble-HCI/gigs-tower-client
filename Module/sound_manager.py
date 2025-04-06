@@ -1,15 +1,16 @@
 import pygame
 
 class SoundManager:
-    def __init__(self):
+    def __init__(self, game_type=1):
         pygame.mixer.init()
+        self.game_type = min(max(1, game_type), 6)  # 1~6 사이의 값으로 제한
         self.sounds = {
             'init': self._load_sound('Sound/init.mp3'),
-            'waiting': self._load_sound('Sound/waiting.mp3'),
-            'countdown': self._load_sound('Sound/countdown.mp3'),
-            'playing': self._load_sound('Sound/playing.mp3'),
-            'score': self._load_sound('Sound/score.mp3'),
-            'result': self._load_sound('Sound/result.mp3'),
+            'waiting': self._load_sound('Sound/wait.wav'),
+            'countdown': self._load_sound('Sound/countdown.wav'),
+            'playing': self._load_sound(f'Sound/playing_{self.game_type}.wav'),
+            'score': self._load_sound('Sound/score.wav'),
+            'result': self._load_sound('Sound/result.wav'),
         }
         self.current_sound = None
 
