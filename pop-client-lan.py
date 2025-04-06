@@ -10,9 +10,12 @@ class CalorieMachine:
         pygame.init()
         
         self.screen_manager = ScreenManager()
-        self.game_state = GameStateManager(self.screen_manager.update_screen)
         self.tcp_handler = TCPHandler(self.OnReceivedMessage)
         self.serial_handler = SerialHandler(self.handle_input)
+        self.game_state = GameStateManager(
+            self.screen_manager.update_screen,
+            self.handle_state_change  # 상태 변경 콜백 추가
+        )
 
         # 초기화 상태 표시
         self.game_state.show_init()
@@ -53,6 +56,11 @@ class CalorieMachine:
                 self.game_state.show_score(score)
         except ValueError:
             print(f"Invalid message format: {message}")
+
+    def handle_state_change(self, new_state):
+        """게임 상태가 변경될 때 호출되는 콜백"""
+        if new_state == GameState.PLAYING:
+            self.tcp_handler.send_message('-2')
 
     def run(self):
         # 연결 대기
