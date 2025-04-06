@@ -20,7 +20,8 @@ class GameStateManager:
         self.result_thread = None
         self.score_thread = None  # Add score timeout thread
         self.state_change_callback = state_change_callback  # 상태 변경 콜백 추가
-
+        self.play_thread = None
+        
     def start_countdown(self):
         self.current_state = GameState.COUNTDOWN
         self.countdown = 10
@@ -45,7 +46,19 @@ class GameStateManager:
         self.sound_manager.play_sound_loop('playing')
         self.screen_update_callback("게임 진행 중...")
         if self.state_change_callback:
-            self.state_change_callback(GameState.PLAYING)  # 상태 변경 알림
+            self.state_change_callback(GameState.PLAYING)
+            
+        def play_timer():
+            time.sleep(60)  # 60초 대기
+            if self.current_state == GameState.PLAYING:
+                if self.state_change_callback:
+                    self.state_change_callback(GameState.SCORE)
+        
+        if self.play_thread and self.play_thread.is_alive():
+            self.play_thread.join(0)
+        self.play_thread = threading.Thread(target=play_timer)
+        self.play_thread.daemon = True
+        self.play_thread.start()
 
     def show_score(self, score):
         self.current_state = GameState.SCORE
