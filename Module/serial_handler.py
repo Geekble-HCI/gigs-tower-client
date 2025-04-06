@@ -5,7 +5,7 @@ import time
 
 class SerialHandler:
     def __init__(self, input_callback):
-        self.serial_port = None
+        self.serial_ports = {}  # 여러 시리얼 포트를 저장하는 딕셔너리
         self.input_callback = input_callback
         self.excluded_ports = [
             '/dev/cu.debug-console',
@@ -23,45 +23,63 @@ class SerialHandler:
             while not self.is_connected:
                 try:
                     ports = list(serial.tools.list_ports.comports())
+                    connected_count = 0
+                    
                     for port in ports:
                         if port.device in self.excluded_ports:
                             continue
-                        try:
-                            self.serial_port = serial.Serial(port.device, 115200, timeout=1)
-                            print(f"Connected to {port.device}")
-                            self.is_connected = True
-                            return
-                        except:
-                            print(f"Failed to connect to {port.device}")
-                    print("No suitable serial port found, retrying...")
+                        if port.device not in self.serial_ports:
+                            try:
+                                new_port = serial.Serial(port.device, 115200, timeout=1)
+                                self.serial_ports[port.device] = new_port
+                                print(f"Connected to {port.device}")
+                                connected_count += 1
+                                # 각 포트마다 모니터링 시작
+                                self.start_port_monitoring(port.device, new_port)
+                            except:
+                                print(f"Failed to connect to {port.device}")
+                    
+                    if connected_count > 0:
+                        self.is_connected = True
+                        return
+                    
+                    print("No suitable serial ports found, retrying...")
                 except Exception as e:
                     print(f"Serial port error: {e}")
-                time.sleep(1)  # 1초 대기 후 재시도
+                time.sleep(1)
 
         self.setup_thread = threading.Thread(target=setup_worker, daemon=True)
         self.setup_thread.start()
-        return True  # 즉시 True 반환하고 백그라운드에서 연결 시도
+        return True
+
+    def start_port_monitoring(self, port_device, port):
+        """각 포트별 모니터링 스레드 시작"""
+        def port_monitor():
+            while True:
+                try:
+                    if port.is_open and port.in_waiting:
+                        received_data = port.readline().decode().strip()
+                        if received_data == 'a':
+                            print(f"Input from {port_device}")  # 어느 포트에서 입력이 왔는지 확인
+                            self.input_callback('a')
+                except:
+                    print(f"Error reading from {port_device}")
+                    break
+                time.sleep(0.1)
+
+        monitor_thread = threading.Thread(target=port_monitor, daemon=True)
+        monitor_thread.start()
 
     def is_ready(self):
-        """시리얼 연결이 준비되었는지 확인"""
+        """하나 이상의 시리얼 연결이 준비되었는지 확인"""
         return self.is_connected
 
     def start_monitoring(self):
-        def serial_monitor():
-            while True:
-                if self.serial_port and self.serial_port.is_open:
-                    try:
-                        if self.serial_port.in_waiting:
-                            received_data = self.serial_port.readline().decode().strip()
-                            if received_data == 'a':
-                                self.input_callback('a')
-                    except:
-                        pass
-                time.sleep(0.1)
-
-        monitor_thread = threading.Thread(target=serial_monitor, daemon=True)
-        monitor_thread.start()
+        """이제 개별 포트 모니터링은 setup 과정에서 처리"""
+        pass
 
     def cleanup(self):
-        if self.serial_port and self.serial_port.is_open:
-            self.serial_port.close()
+        """모든 시리얼 포트 정리"""
+        for port in self.serial_ports.values():
+            if port and port.is_open:
+                port.close()
