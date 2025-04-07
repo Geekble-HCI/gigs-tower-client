@@ -79,7 +79,7 @@ class CalorieMachine:
 
     def OnReceivedTCPMessage(self, message):
         try:
-            score = int(message)
+            score = float(message)
             if score >= 0 and self.game_state.current_state == GameState.PLAYING:
                 self.score_manager.add_score(score)
         except ValueError:
