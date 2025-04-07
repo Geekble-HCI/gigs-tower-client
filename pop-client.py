@@ -70,8 +70,8 @@ class CalorieMachine:
                 self.game_state.show_waiting()  # INIT 상태에서 WAITING으로 강제 전환
             elif self.game_state.current_state == GameState.SCORE:
                 if self.use_tcp:
-                    self.tcp_handler.send_message('-3')
-                self.game_state.show_result(7176)  # 점수를 전달하여 결과 화면으로
+                    self.tcp_handler.send_message('-4')
+                self.game_state.show_result(self.score_manager.get_total_score())  # 점수를 전달하여 결과 화면으로
             elif self.game_state.current_state == GameState.WAITING:
                 if self.use_tcp:
                     self.tcp_handler.send_message('-1')
