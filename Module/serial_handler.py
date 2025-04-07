@@ -59,9 +59,8 @@ class SerialHandler:
                 try:
                     if port.is_open and port.in_waiting:
                         received_data = port.readline().decode().strip()
-                        if received_data == 'a':
-                            print(f"Input from {port_device}")  # 어느 포트에서 입력이 왔는지 확인
-                            self.input_callback('a')
+                        print(f"Input from {port_device}")  # 어느 포트에서 입력이 왔는지 확인
+                        self.input_callback(received_data)
                 except:
                     print(f"Error reading from {port_device}")
                     break
