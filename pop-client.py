@@ -95,6 +95,7 @@ class CalorieMachine:
             if self.use_tcp:
                 self.tcp_handler.send_message('-3')
             final_score = self.score_manager.get_total_score()
+            final_score = int(final_score)
             self.game_state.show_score(final_score)
 
     def run(self):
