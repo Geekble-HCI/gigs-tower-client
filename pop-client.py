@@ -78,6 +78,12 @@ class CalorieMachine:
                 self.game_state.start_countdown()
             elif self.game_state.current_state == GameState.PLAYING:
                 self.game_state.show_score(7176)
+        else:
+            if self.game_state.current_state == GameState.PLAYING:
+                score = int(input_value)
+                print(f"Score received: {score}")  # 디버깅용 로그 추가
+                if score >=0:
+                    self.score_manager.add_score(score)
 
     def OnReceivedTCPMessage(self, message):
         try:
