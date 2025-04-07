@@ -99,6 +99,7 @@ class GameStateManager:
         if self.timer_thread and self.timer_thread.is_alive():
             self.timer_thread.join(0)
         self.timer_thread = None
+        self.sound_manager.stop_sound()
         # self.sound_manager.play_sound_loop('waiting')
         self.screen_update_callback("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
 
