@@ -79,7 +79,7 @@ class GameStateManager:
     def show_result(self, score):
         self.current_state = GameState.RESULT
         self.sound_manager.play_sound('result')
-        self.screen_update_callback(f"{score}점을\n획득했습니다!")
+        self.screen_update_callback(f"{int(score)}점을\n획득했습니다!")
         
         def result_timer():
             time.sleep(3)  # 3초 대기
