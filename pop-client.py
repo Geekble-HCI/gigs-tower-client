@@ -42,7 +42,11 @@ class CalorieMachine:
             self.game_state.show_exit()
         else:
             self.game_state.show_init()
+            # ENTER/EXIT가 아닐 때만 통신 초기화
+            self.setup_communications(use_tcp)
 
+    def setup_communications(self, use_tcp):
+        """통신 초기화 함수"""
         # TCP 핸들러 조건부 초기화
         self.tcp_handler = None
         self.use_tcp = use_tcp
@@ -62,11 +66,16 @@ class CalorieMachine:
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     pygame.quit()
                     sys.exit()
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:  # A 키 처리 추가
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
                     self.handle_input('a')
             
             # 화면 업데이트 처리
             self.screen_manager.process_message_queue()
+            
+            # ENTER나 EXIT 상태일 때는 연결 상태를 체크하지 않음
+            if self.game_state.current_state in [GameState.ENTER, GameState.EXIT]:
+                pygame.time.wait(100)
+                continue
             
             # 연결 상태 체크
             if self.serial_handler.is_ready():
@@ -75,7 +84,9 @@ class CalorieMachine:
             
             pygame.time.wait(100)
         
-        self.game_state.show_waiting()
+        # ENTER나 EXIT 상태가 아닐 때만 WAITING으로 전환
+        if self.game_state.current_state not in [GameState.ENTER, GameState.EXIT]:
+            self.game_state.show_waiting()
 
     def handle_input(self, input_value):
         print(f"Input received: {input_value}, Current state: {self.game_state.current_state}")  # 디버깅용 로그 추가
