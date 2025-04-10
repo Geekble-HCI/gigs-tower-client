@@ -18,10 +18,12 @@ def parse_arguments():
     4: Pool Ball
     5: Air Siso
     6: Robot Basketball''')
+    parser.add_argument('--enter', action='store_true', help='Show enter screen')
+    parser.add_argument('--exit', action='store_true', help='Show exit screen')
     return parser.parse_args()
 
 class CalorieMachine:
-    def __init__(self, use_tcp=False, game_type=1):
+    def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False):
         pygame.init()
         
         self.screen_manager = ScreenManager()
@@ -33,8 +35,13 @@ class CalorieMachine:
             game_type
         )
 
-        # 초기화 상태 표시
-        self.game_state.show_init()
+        # 시작 상태 결정
+        if show_enter:
+            self.game_state.show_enter()
+        elif show_exit:
+            self.game_state.show_exit()
+        else:
+            self.game_state.show_init()
 
         # TCP 핸들러 조건부 초기화
         self.tcp_handler = None
@@ -89,7 +96,7 @@ class CalorieMachine:
             if self.game_state.current_state == GameState.PLAYING:
                 score = int(input_value)
                 print(f"Score received: {score}")  # 디버깅용 로그 추가
-                if score >=0:
+                if score >0:
                     self.score_manager.add_score(score)
 
     def OnReceivedTCPMessage(self, message):
@@ -135,5 +142,10 @@ class CalorieMachine:
 
 if __name__ == "__main__":
     args = parse_arguments()
-    game = CalorieMachine(use_tcp=args.tcp, game_type=args.type)
+    game = CalorieMachine(
+        use_tcp=args.tcp, 
+        game_type=args.type,
+        show_enter=args.enter,
+        show_exit=args.exit
+    )
     game.run()

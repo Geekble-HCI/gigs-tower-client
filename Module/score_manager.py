@@ -1,5 +1,8 @@
+from .sound_manager import SoundManager
+
 class ScoreManager:
     def __init__(self):
+        self.sound_manager = SoundManager()
         self.reset_score()
     
     def reset_score(self):
@@ -11,6 +14,7 @@ class ScoreManager:
         self.total_score += score
         if self.total_score > 100:
             self.total_score = 100
+        self.sound_manager.play_sfx('get')
         
     def get_total_score(self):
         """현재까지의 총점 반환"""

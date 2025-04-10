@@ -3,12 +3,14 @@ import time
 from .sound_manager import SoundManager
 
 class GameState:
-    INIT = "INIT"  # 새로운 상태 추가
+    INIT = "INIT"
     WAITING = "WAITING"
     COUNTDOWN = "COUNTDOWN"
     PLAYING = "PLAYING"
     SCORE = "SCORE"
-    RESULT = "RESULT"  # 새로운 상태 추가
+    RESULT = "RESULT"
+    ENTER = "ENTER"  # 새로운 상태 추가
+    EXIT = "EXIT"    # 새로운 상태 추가
 
 class GameStateManager:
     def __init__(self, screen_update_callback, state_change_callback=None, game_type=1):
@@ -119,3 +121,15 @@ class GameStateManager:
         self.current_state = GameState.INIT
         self.sound_manager.play_bgm_loop('init')  # play_sound_loop -> play_bgm_loop
         self.screen_update_callback("시스템 초기화 중...")
+
+    def show_enter(self):
+        """입장 상태 표시"""
+        self.current_state = GameState.ENTER
+        self.sound_manager.play_bgm_loop('enter')  # enter.wav 또는 enter.mp3 필요
+        self.screen_update_callback("게임을 시작해주세요!")
+
+    def show_exit(self):
+        """퇴장 상태 표시"""
+        self.current_state = GameState.EXIT
+        self.sound_manager.play_bgm_loop('exit')  # exit.wav 또는 exit.mp3 필요
+        self.screen_update_callback("수고하셨습니다!")

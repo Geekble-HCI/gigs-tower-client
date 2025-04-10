@@ -13,13 +13,13 @@ class SoundManager:
             'playing': self._load_sound(f'Sound/playing_{self.game_type}.wav'),
             'score': self._load_sound('Sound/score.wav'),
             'result': self._load_sound('Sound/result.wav'),
+            'enter': self._load_sound('Sound/enter.wav'),  # 새로운 사운드 추가
+            'exit': self._load_sound('Sound/exit.wav'),    # 새로운 사운드 추가
         }
         
         # SFX 사운드 (예시)
         self.sfx_sounds = {
-            'button': self._load_sound('Sound/sfx_button.wav'),
-            'success': self._load_sound('Sound/sfx_success.wav'),
-            'fail': self._load_sound('Sound/sfx_fail.wav'),
+            'get': self._load_sound('Sound/get.wav'),
         }
         
         self.current_bgm = None
