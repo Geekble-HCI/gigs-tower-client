@@ -99,9 +99,20 @@ class GameStateManager:
         if self.timer_thread and self.timer_thread.is_alive():
             self.timer_thread.join(0)
         self.timer_thread = None
-        self.sound_manager.stop_bgm()  # stop_sound -> stop_bgm
-        # self.sound_manager.play_bgm_loop('waiting')  # play_sound_loop -> play_bgm_loop
-        self.screen_update_callback("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
+        self.sound_manager.stop_bgm()
+
+        # 게임 타입에 따른 메시지 설정
+        game_messages = {
+            1: "헬시 버거 만들기",
+            2: "꿀잠자기",
+            3: "칼로링머신",
+            4: "볼풀공",
+            5: "에어시소",
+            6: "로봇팔농구"
+        }
+        
+        game_title = game_messages.get(self.sound_manager.game_type, "칼로링머신")
+        self.screen_update_callback(f"{game_title}\n\n태그를 하면\n게임이 시작됩니다!")
 
     def show_init(self):
         """초기화 상태 표시"""

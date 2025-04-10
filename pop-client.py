@@ -8,9 +8,16 @@ from Module.screen_manager import ScreenManager
 from Module.score_manager import ScoreManager
 
 def parse_arguments():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='Samyang Pop Game Client')
     parser.add_argument('--tcp', action='store_true', help='Enable TCP connection')
-    parser.add_argument('--type', type=int, choices=[1,2,3,4,5,6], default=1, help='Game type (1-6)')
+    parser.add_argument('--type', type=int, choices=[1,2,3,4,5,6], default=1,
+                      help='''Game type:
+    1: Healthy Burger
+    2: Sleep Disturbance
+    3: Rowing Machine
+    4: Pool Ball
+    5: Air Siso
+    6: Robot Basketball''')
     return parser.parse_args()
 
 class CalorieMachine:
