@@ -37,7 +37,7 @@ void loop() {
   nfc.getDataTarget(apduBuf, &apduLen);
   if (apduLen > 0) {
     // 최초 APDU 수신 시
-    Serial.println("a");
-    delay(5000);
+    Serial.println('a');
+    delay(200);
   }
 }
