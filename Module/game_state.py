@@ -103,12 +103,12 @@ class GameStateManager:
 
         # 게임 타입에 따른 메시지 설정
         game_messages = {
-            1: "헬시 버거 만들기",
-            2: "꿀잠자기",
-            3: "칼로링머신",
-            4: "볼풀공",
-            5: "에어시소",
-            6: "로봇팔농구"
+            1: "헬시 버거\n챌린지",
+            2: "꿀잠 방해꾼\nOUT!",
+            3: "불태워!\n칼로링머신",
+            4: "볼볼볼\n영양소",
+            5: "바이오데이터\n에어시소",
+            6: "슛잇!\n무빙 골대"
         }
         
         game_title = game_messages.get(self.sound_manager.game_type, "칼로링머신")
