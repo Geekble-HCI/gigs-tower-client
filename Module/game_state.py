@@ -25,7 +25,7 @@ class GameStateManager:
     def start_countdown(self):
         self.current_state = GameState.COUNTDOWN
         self.countdown = 10
-        self.sound_manager.play_sound('countdown')
+        self.sound_manager.play_bgm('countdown')  # play_sound -> play_bgm
         
         def countdown_timer():
             while self.countdown > 0 and self.current_state == GameState.COUNTDOWN:
@@ -43,7 +43,7 @@ class GameStateManager:
 
     def start_game(self):
         self.current_state = GameState.PLAYING
-        self.sound_manager.play_sound_loop('playing')
+        self.sound_manager.play_bgm_loop('playing')  # play_sound_loop -> play_bgm_loop
         self.screen_update_callback("게임 진행 중...")
         if self.state_change_callback:
             self.state_change_callback(GameState.PLAYING)
@@ -62,7 +62,7 @@ class GameStateManager:
 
     def show_score(self, score):
         self.current_state = GameState.SCORE
-        self.sound_manager.play_sound('score')
+        self.sound_manager.play_bgm('score')  # play_sound -> play_bgm
         self.screen_update_callback(f"당신의 점수는?\n\n{score}\n\n태그를 하여\n점수를 획득하세요!")
         
         def score_timer():
@@ -78,7 +78,7 @@ class GameStateManager:
 
     def show_result(self, score):
         self.current_state = GameState.RESULT
-        self.sound_manager.play_sound('result')
+        self.sound_manager.play_bgm('result')  # play_sound -> play_bgm
         self.screen_update_callback(f"{int(score)}점을\n획득했습니다!")
         
         def result_timer():
@@ -99,12 +99,12 @@ class GameStateManager:
         if self.timer_thread and self.timer_thread.is_alive():
             self.timer_thread.join(0)
         self.timer_thread = None
-        self.sound_manager.stop_sound()
-        # self.sound_manager.play_sound_loop('waiting')
+        self.sound_manager.stop_bgm()  # stop_sound -> stop_bgm
+        # self.sound_manager.play_bgm_loop('waiting')  # play_sound_loop -> play_bgm_loop
         self.screen_update_callback("칼로링머신\n\n태그를 하면\n게임이 시작됩니다!")
 
     def show_init(self):
         """초기화 상태 표시"""
         self.current_state = GameState.INIT
-        self.sound_manager.play_sound_loop('init')  # 대기 사운드 재생
+        self.sound_manager.play_bgm_loop('init')  # play_sound_loop -> play_bgm_loop
         self.screen_update_callback("시스템 초기화 중...")
