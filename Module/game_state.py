@@ -119,7 +119,7 @@ class GameStateManager:
     def show_init(self):
         """초기화 상태 표시"""
         self.current_state = GameState.INIT
-        self.sound_manager.play_bgm_loop('init')  # play_sound_loop -> play_bgm_loop
+        self.sound_manager.play_bgm_loop('waiting')  # play_sound_loop -> play_bgm_loop
         self.screen_update_callback("시스템 초기화 중...")
 
     def show_enter(self):
