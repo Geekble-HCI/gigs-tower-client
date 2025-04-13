@@ -111,13 +111,13 @@ class CalorieMachine:
             if self.game_state.current_state == GameState.PLAYING:
                 score = int(input_value)
                 print(f"Score received: {score}")  # 디버깅용 로그 추가
-                if score >0:
+                if score > 0:
                     self.score_manager.add_score(score)
 
     def OnReceivedTCPMessage(self, message):
         try:
             score = float(message)
-            if score >= 0 and self.game_state.current_state == GameState.PLAYING:
+            if score > 0 and self.game_state.current_state == GameState.PLAYING:
                 self.score_manager.add_score(score)
         except ValueError:
             print(f"Invalid message format: {message}")

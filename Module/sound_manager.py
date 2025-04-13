@@ -19,7 +19,7 @@ class SoundManager:
         
         # SFX 사운드 (예시)
         self.sfx_sounds = {
-            'get': self._load_sound('Sound/get.wav'),
+            'get': self._load_sound('Sound/get_big.wav'),
         }
         
         self.current_bgm = None
