@@ -20,10 +20,12 @@ def parse_arguments():
     6: Robot Basketball''')
     parser.add_argument('--enter', action='store_true', help='Show enter screen')
     parser.add_argument('--exit', action='store_true', help='Show exit screen')
+    parser.add_argument('--score-wait-time', type=int, default=15, help='Wait time for the score screen (default: 15 seconds)')
+    parser.add_argument('--countdown-time', type=int, default=10, help='Countdown time for the game start (default: 10 seconds)')
     return parser.parse_args()
 
 class CalorieMachine:
-    def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False):
+    def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False, score_wait_time=15, countdown_time=10):
         pygame.init()
         
         self.screen_manager = ScreenManager()
@@ -32,7 +34,9 @@ class CalorieMachine:
         self.game_state = GameStateManager(
             self.screen_manager.update_screen,
             self.handle_state_change,
-            game_type
+            game_type,
+            score_wait_time,  # Pass the score wait time
+            countdown_time    # Pass the countdown time
         )
 
         # 시작 상태 결정
@@ -157,6 +161,8 @@ if __name__ == "__main__":
         use_tcp=args.tcp, 
         game_type=args.type,
         show_enter=args.enter,
-        show_exit=args.exit
+        show_exit=args.exit,
+        score_wait_time=args.score_wait_time,  # Pass the argument to the game
+        countdown_time=args.countdown_time    # Pass the argument to the game
     )
     game.run()
