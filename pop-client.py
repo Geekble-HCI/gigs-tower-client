@@ -109,10 +109,13 @@ class CalorieMachine:
             #     self.game_state.show_score(7176)
         else:
             if self.game_state.current_state == GameState.PLAYING:
-                score = int(input_value)
-                print(f"Score received: {score}")  # 디버깅용 로그 추가
-                if score > 0:
-                    self.score_manager.add_score(score)
+                try:
+                    score = int(input_value)
+                    print(f"Score received: {score}")  # 디버깅용 로그 추가
+                    if score > 0:
+                        self.score_manager.add_score(score)
+                except ValueError:
+                    pass  # 숫자로 변환할 수 없는 입력은 무시
 
     def OnReceivedTCPMessage(self, message):
         try:
