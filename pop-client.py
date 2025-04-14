@@ -95,18 +95,18 @@ class CalorieMachine:
     def handle_input(self, input_value):
         print(f"Input received: {input_value}, Current state: {self.game_state.current_state}")  # 디버깅용 로그 추가
         if input_value == 'a':
-            if self.game_state.current_state == GameState.INIT:
-                self.game_state.show_waiting()  # INIT 상태에서 WAITING으로 강제 전환
-            elif self.game_state.current_state == GameState.SCORE:
-                if self.use_tcp:
-                    self.tcp_handler.send_message('-4')
-                self.game_state.show_result(self.score_manager.get_total_score())  # 점수를 전달하여 결과 화면으로
-            elif self.game_state.current_state == GameState.WAITING:
+            if self.game_state.current_state == GameState.WAITING:
                 if self.use_tcp:
                     self.tcp_handler.send_message('-1')
                 self.game_state.start_countdown()
-            elif self.game_state.current_state == GameState.PLAYING:
-                self.game_state.show_score(7176)
+            # elif self.game_state.current_state == GameState.INIT:
+            #     self.game_state.show_waiting()  # INIT 상태에서 WAITING으로 강제 전환
+            # elif self.game_state.current_state == GameState.SCORE:
+            #     if self.use_tcp:
+            #         self.tcp_handler.send_message('-4')
+            #     self.game_state.show_result(self.score_manager.get_total_score())  # 점수를 전달하여 결과 화면으로
+            # elif self.game_state.current_state == GameState.PLAYING:
+            #     self.game_state.show_score(7176)
         else:
             if self.game_state.current_state == GameState.PLAYING:
                 score = int(input_value)
