@@ -72,6 +72,7 @@ class SerialHandler:
     def is_ready(self):
         """하나 이상의 시리얼 연결이 준비되었는지 확인"""
         return self.is_connected
+        # return True # 로컬 테스트용 
 
     def start_monitoring(self):
         """이제 개별 포트 모니터링은 setup 과정에서 처리"""

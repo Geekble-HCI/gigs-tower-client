@@ -8,6 +8,7 @@ kiwisolver==1.4.5
 matplotlib==3.9.0
 numpy==1.26.4
 packaging==24.0
+paho-mqtt==1.6.1
 pillow==10.3.0
 pygame==2.6.1
 pyobjc==11.0

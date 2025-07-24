@@ -44,6 +44,7 @@ class TCPHandler:
     def is_ready(self):
         """TCP 연결이 준비되었는지 확인"""
         return self.is_connected
+        # return True # 로컬 테스트용
 
     def send_message(self, message):
         """TCP 메시지 전송"""

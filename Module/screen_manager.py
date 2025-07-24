@@ -11,6 +11,10 @@ class ScreenManager:
 
     def __init__(self):
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        
+        # 테스트용
+        # self.screen = pygame.display.set_mode((800, 600))
+
         self.width = self.screen.get_width()
         self.height = self.screen.get_height()
         

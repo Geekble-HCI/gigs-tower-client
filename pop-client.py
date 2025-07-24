@@ -6,6 +6,7 @@ from Module.serial_handler import SerialHandler
 from Module.game_state import GameState, GameStateManager
 from Module.screen_manager import ScreenManager
 from Module.score_manager import ScoreManager
+from Module.mqtt_client import MQTTClient # MQTTClient 임포트
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Samyang Pop Game Client')
@@ -22,21 +23,30 @@ def parse_arguments():
     parser.add_argument('--exit', action='store_true', help='Show exit screen')
     parser.add_argument('--score-wait-time', type=int, default=15, help='Wait time for the score screen (default: 15 seconds)')
     parser.add_argument('--countdown-time', type=int, default=10, help='Countdown time for the game start (default: 10 seconds)')
+    parser.add_argument('--mqtt-broker', type=str, default=None, help='MQTT broker address')
+    parser.add_argument('--mqtt-client-id', type=str, default='01', help='MQTT client ID')
     return parser.parse_args()
 
 class CalorieMachine:
-    def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False, score_wait_time=15, countdown_time=10):
+    def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False, score_wait_time=15, countdown_time=10, mqtt_broker=None, mqtt_client_id=None):
         pygame.init()
         
         self.screen_manager = ScreenManager()
         self.serial_handler = SerialHandler(self.handle_input)
         self.score_manager = ScoreManager()
+        
+        self.mqtt_client = None
+        if mqtt_broker:
+            self.mqtt_client = MQTTClient(mqtt_broker, 1883, mqtt_client_id)
+            self.mqtt_client.connect()
+
         self.game_state = GameStateManager(
             self.screen_manager.update_screen,
             self.handle_state_change,
             game_type,
             score_wait_time,  # Pass the score wait time
-            countdown_time    # Pass the countdown time
+            countdown_time,    # Pass the countdown time
+            self.mqtt_client # MQTT 클라이언트 전달
         )
 
         # 시작 상태 결정
@@ -48,6 +58,7 @@ class CalorieMachine:
             self.game_state.show_init()
             # ENTER/EXIT가 아닐 때만 통신 초기화
             self.setup_communications(use_tcp)
+
 
     def setup_communications(self, use_tcp):
         """통신 초기화 함수"""
@@ -166,6 +177,8 @@ if __name__ == "__main__":
         show_enter=args.enter,
         show_exit=args.exit,
         score_wait_time=args.score_wait_time,  # Pass the argument to the game
-        countdown_time=args.countdown_time    # Pass the argument to the game
+        countdown_time=args.countdown_time,    # Pass the argument to the game
+        mqtt_broker=args.mqtt_broker,
+        mqtt_client_id=args.mqtt_client_id
     )
     game.run()
