@@ -30,7 +30,7 @@ class GameStateManager:
         
     def _publish_state(self, state, score=None):
         if self.mqtt_client:
-            topic = f"device/{self.client_id}/state"
+            topic = f"device/{self.client_id}/state" # 메세지를 발행할 topic(엔드포인트)
             payload = {"state": state}
             if score is not None:
                 payload["score"] = score

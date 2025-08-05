@@ -1,12 +1,14 @@
 import pygame
 import sys
 import argparse
+from Module.mqtt_client import MQTTClient
+from Module.sound_manager import SoundManager
 from Module.tcp_handler import TCPHandler
 from Module.serial_handler import SerialHandler
 from Module.game_state import GameState, GameStateManager
 from Module.screen_manager import ScreenManager
 from Module.score_manager import ScoreManager
-from Module.mqtt_client import MQTTClient # MQTTClient 임포트
+from Module.command_handler import CommandDispatcher, CommandType, VolumeCommand
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Samyang Pop Game Client')
@@ -31,13 +33,19 @@ class CalorieMachine:
     def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False, score_wait_time=15, countdown_time=10, mqtt_broker=None, mqtt_client_id=None):
         pygame.init()
         
+        self.sound_manager = SoundManager(game_type)
         self.screen_manager = ScreenManager()
         self.serial_handler = SerialHandler(self.handle_input)
         self.score_manager = ScoreManager()
         
         self.mqtt_client = None
         if mqtt_broker:
+            # MQTT 브로커 topic 및 연결 설정
             self.mqtt_client = MQTTClient(mqtt_broker, 1883, mqtt_client_id)
+            self.mqtt_client.add_subscription("device/+/state")     # TODO: tower id로 수정 필요 
+            self.mqtt_client.add_subscription("device/+/command")   # TODO: tower id로 수정 필요 
+            # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.client_id}/ping")
+            # self.mqtt_client.add_subscription("broadcast/#")
             self.mqtt_client.connect()
 
         self.game_state = GameStateManager(
@@ -48,6 +56,13 @@ class CalorieMachine:
             countdown_time,    # Pass the countdown time
             self.mqtt_client # MQTT 클라이언트 전달
         )
+
+        # Initialize command handler for MQTT commands
+        self.command_handler = None
+        if self.mqtt_client:
+            self.command_handler = CommandDispatcher()
+            self.command_handler.register(CommandType.VOLUME, VolumeCommand(self.sound_manager))
+            self.mqtt_client.set_message_callback(self._handle_mqtt_command)
 
         # 시작 상태 결정
         if show_enter:
@@ -127,6 +142,26 @@ class CalorieMachine:
                         self.score_manager.add_score(score)
                 except ValueError:
                     pass  # 숫자로 변환할 수 없는 입력은 무시
+
+    def _handle_mqtt_command(self, topic, payload):
+        """Handle MQTT command messages"""
+        try:
+            if self.command_handler:
+                command = payload['data']['command']
+                value = payload['data']['value']
+                time = payload['data']['timestamp']
+                deviceId = payload['data']['deviceId']
+
+                print(f"[MQTT] args: {command}, {value}, {time}, {deviceId}")
+
+                success = self.command_handler.dispatch(command, value, time, deviceId)
+                if not success:
+                    print(f"[MQTT] Command processing failed for topic: {topic}")
+                
+            else:
+                print("[MQTT] No command handler available")
+        except Exception as e:
+            print(f"[MQTT] Error in command handling: {e}")
 
     def OnReceivedTCPMessage(self, message):
         try:

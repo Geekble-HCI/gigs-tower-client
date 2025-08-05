@@ -1,8 +1,21 @@
 import pygame
 
 class SoundManager:
+    _instance = None  # 싱글톤 인스턴스
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            print("[SOUND] Initializing SoundManager singleton")
+            cls._instance = super(SoundManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self, game_type=1):
+        if self._initialized:
+            return
         pygame.mixer.init()
+        self._initialized = True
+        
         self.game_type = min(max(1, game_type), 6)  # 1~6 사이의 값으로 제한
         
         # BGM 사운드
@@ -24,6 +37,7 @@ class SoundManager:
         
         self.current_bgm = None
         self.current_sfx = None
+        self.volume = 1.0  # Default volume (0.0-1.0)
 
     def _load_sound(self, path):
         try:
@@ -37,9 +51,13 @@ class SoundManager:
             self.current_bgm.stop()
         
         sound = self.bgm_sounds.get(sound_name)
+        print(f"[DEBUG] sound name: {sound}")
+
         if sound:
+            self._apply_volume(sound)
             sound.play(0)  # 0은 한번만 재생
             self.current_bgm = sound
+            print(f"[DEBUG] current sound name: {self.current_bgm}")
 
     def play_bgm_loop(self, sound_name):
         if self.current_bgm:
@@ -47,12 +65,14 @@ class SoundManager:
         
         sound = self.bgm_sounds.get(sound_name)
         if sound:
+            self._apply_volume(sound)
             sound.play(-1)
             self.current_bgm = sound
 
     def play_sfx(self, sound_name):
         sound = self.sfx_sounds.get(sound_name)
         if sound:
+            self._apply_volume(sound)
             sound.play(0)  # SFX는 한번만 재생
 
     def stop_bgm(self):
@@ -65,3 +85,27 @@ class SoundManager:
         for sound in self.sfx_sounds.values():
             if sound:
                 sound.stop()
+    
+    def set_volume(self, volume):
+        self.volume = max(0.0, min(1.0, volume))
+        print(f"[SOUND] Volume set to {self.volume:.2f} ({int(self.volume * 100)}%)")
+
+        if self.current_bgm:
+            print(f"[DEBUG] BGM before volume: {self.current_bgm.get_volume()}")
+            self.current_bgm.set_volume(self.volume)
+            print(f"[DEBUG] BGM after volume: {self.current_bgm.get_volume()}")
+        else:
+            print("[DEBUG] No BGM currently playing")
+
+        for sfx in self.sfx_sounds.values():
+            if sfx:
+                sfx.set_volume(self.volume)
+    
+    def get_volume(self):
+        """Get current master volume"""
+        return self.volume
+    
+    def _apply_volume(self, sound):
+        """Apply current volume to a sound object"""
+        if sound:
+            sound.set_volume(self.volume)
