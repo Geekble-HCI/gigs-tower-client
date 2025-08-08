@@ -1,5 +1,3 @@
-import pygame
-import sys
 import argparse
 from gigs import GIGS
 
@@ -23,7 +21,6 @@ def parse_arguments():
     return parser.parse_args()
 
 
-
 if __name__ == "__main__":
     args = parse_arguments()
     game = GIGS(
@@ -31,8 +28,8 @@ if __name__ == "__main__":
         game_type=args.type,
         show_enter=args.enter,
         show_exit=args.exit,
-        score_wait_time=args.score_wait_time,  # Pass the argument to the game
-        countdown_time=args.countdown_time,    # Pass the argument to the game
+        score_wait_time=args.score_wait_time,
+        countdown_time=args.countdown_time,
         mqtt_broker=args.mqtt_broker,
         mqtt_client_id=args.mqtt_client_id
     )
