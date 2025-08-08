@@ -1,3 +1,5 @@
+import time
+from Module.mqtt_scanner import MqttBrokerScanner
 from .mqtt_client import MQTTClient
 from .command_handler import CommandDispatcher, CommandType, VolumeCommand
 
@@ -5,26 +7,45 @@ from .command_handler import CommandDispatcher, CommandType, VolumeCommand
 class MQTTManager:
     """MQTT 연결 및 명령 처리를 관리하는 클래스"""
     
-    def __init__(self, mqtt_broker=None, mqtt_client_id=None, sound_manager=None):
+    def __init__(self, mqtt_broker_ip=None, mqtt_client_id=None, sound_manager=None):
         """
         MQTTManager 초기화
         
         Args:
-            mqtt_broker: MQTT 브로커 주소
+            mqtt_broker_ip: MQTT 브로커 주소
             mqtt_client_id: MQTT 클라이언트 ID
             sound_manager: 사운드 매니저 인스턴스 (볼륨 명령 처리용)
         """
         self.mqtt_client = None
         self.command_handler = None
+        self.mqtt_broker_ip = mqtt_broker_ip
+
+        if self.mqtt_broker_ip == None:
+            self._setup_mqtt_broker_ip()
         
-        if mqtt_broker:
-            self._setup_mqtt_client(mqtt_broker, mqtt_client_id)
+        if self.mqtt_broker_ip:
+            self._setup_mqtt_client(self.mqtt_broker_ip, mqtt_client_id)
             self._setup_command_handler(sound_manager)
+
+    def _setup_mqtt_broker_ip(self, ):
+        # 브로커 스캔
+        scanner = MqttBrokerScanner(timeout=0.3, max_threads=50)
+        start_time = time.time()
+
+        self.mqtt_broker_ip =scanner.scan()
+
+        elapsed = round(time.time() - start_time, 2)
+        print(f"[BROKER] 검색 소요 시간: {elapsed}초")
+
+        if self.mqtt_broker_ip:
+            print(f"[BROKER] 연결 시도 대상: {self.mqtt_broker_ip}")
+        else:
+            print("[BROKER] 브로커 탐색 실패")
     
-    def _setup_mqtt_client(self, mqtt_broker, mqtt_client_id):
+    def _setup_mqtt_client(self, mqtt_broker_ip, mqtt_client_id):
         """MQTT 클라이언트 설정 및 연결"""
         # MQTT 브로커 topic 및 연결 설정
-        self.mqtt_client = MQTTClient(mqtt_broker, 1883, mqtt_client_id)
+        self.mqtt_client = MQTTClient(mqtt_broker_ip, 1883, mqtt_client_id)
         
         # IP 주소 기반 토픽 구독 설정
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/state")
