@@ -27,11 +27,12 @@ class GameStateManager:
         self.countdown_time = countdown_time  # Store the countdown time
         self.mqtt_client = mqtt_client # MQTT 클라이언트 저장
         self.client_id = mqtt_client.client_id if mqtt_client else "unknown_client"
+        self.device_ip = mqtt_client.ip_address if mqtt_client else "unknown_ip"
         
     def _publish_state(self, state, score=None):
         if self.mqtt_client:
-            topic = f"device/{self.client_id}/state" # 메세지를 발행할 topic(엔드포인트)
-            payload = {"state": state}
+            topic = f"device/{self.device_ip}/state" # IP 주소 기반 topic
+            payload = {"client_id": self.client_id, "state": state }
             if score is not None:
                 payload["score"] = score
             self.mqtt_client.publish(topic, payload)

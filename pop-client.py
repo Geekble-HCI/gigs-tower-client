@@ -40,10 +40,17 @@ class CalorieMachine:
         
         self.mqtt_client = None
         if mqtt_broker:
+            
             # MQTT 브로커 topic 및 연결 설정
             self.mqtt_client = MQTTClient(mqtt_broker, 1883, mqtt_client_id)
-            self.mqtt_client.add_subscription("device/+/state")     # TODO: tower id로 수정 필요 
-            self.mqtt_client.add_subscription("device/+/command")   # TODO: tower id로 수정 필요 
+            
+            # IP 주소 기반 토픽 구독 설정
+            self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/state")
+            self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/command")
+            
+            # 글로벌 토픽도 유지 (관리용)
+            # self.mqtt_client.add_subscription("device/+/state")
+            # self.mqtt_client.add_subscription("device/+/command")
             # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.client_id}/ping")
             # self.mqtt_client.add_subscription("broadcast/#")
             self.mqtt_client.connect()

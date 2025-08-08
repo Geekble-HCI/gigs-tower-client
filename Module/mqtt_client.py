@@ -1,11 +1,24 @@
 import paho.mqtt.client as mqtt
 import json
+from .local_ip_resolver import LocalIpResolver
 
 class MQTTClient:
     def __init__(self, broker_address, port, client_id):
         self.broker_address = broker_address
         self.port = port
         self.client_id = client_id
+        
+        # IP 주소 기반 식별자 생성
+        try:
+            self.ip_address = LocalIpResolver.resolve_ip()
+            if not self.ip_address:
+                raise Exception("IP 주소를 가져올 수 없습니다")
+        except Exception as e:
+            print(f"[MQTT] IP 주소 해석 실패: {e}")
+            self.ip_address = "unknown"
+        
+        print(f"[MQTT] Device IP: {self.ip_address}")
+        
         self.client = mqtt.Client(client_id=self.client_id)
         self.client.on_connect = self._on_connect
         self.client.on_disconnect = self._on_disconnect
