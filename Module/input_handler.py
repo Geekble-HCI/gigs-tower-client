@@ -4,15 +4,8 @@ from .game_state import GameState
 
 
 class InputHandler:
-    """키보드 입력을 처리하는 클래스"""
     
     def __init__(self, gigs_instance):
-        """
-        InputHandler 초기화
-        
-        Args:
-            gigs_instance: GIGS 클래스 인스턴스 (콜백 함수들에 접근하기 위함)
-        """
         self._gigs = gigs_instance
         self._key_mappings = {
             pygame.K_a: self._handle_key_a,
@@ -51,18 +44,49 @@ class InputHandler:
         return True  # 매핑되지 않은 키는 무시하고 게임 계속 실행
     
     def _handle_key_a(self):
-        """A 키 처리"""
-        self.handle_serial_input('a')
+        """A 키 처리 (테스트 모드 전용)"""
+        # 테스트 모드일 때만 키보드 입력 처리
+        if hasattr(self._gigs, 'test_mode') and self._gigs.test_mode:
+            current_state = self._gigs.game_state.current_state
+            print(f"[INPUT TEST] A key pressed - current state: {current_state}")
+            
+            # 상태별 처리
+            if current_state == GameState.INIT:
+                print("[INPUT TEST] INIT -> WAITING")
+                self._gigs.game_state.show_waiting()
+            elif current_state == GameState.WAITING:
+                print("[INPUT TEST] WAITING -> COUNTDOWN")
+                if self._gigs.use_tcp:
+                    self._gigs.tcp_handler.send_message('-1')
+                self._gigs.game_state.start_countdown()
+            elif current_state == GameState.PLAYING:
+                print("[INPUT TEST] PLAYING -> RESULT (forcing game end)")
+                # 테스트용 점수로 결과 화면 표시
+                test_score = self._gigs.score_manager.get_total_score()
+                if test_score == 0:
+                    test_score = 7176  # 기본 테스트 점수
+                self._gigs.game_state.show_result(test_score)
+            else:
+                print(f"[INPUT TEST] A key pressed in {current_state} - no action")
+        
         return True
     
     def _handle_key_b(self):
         """B 키 처리 (PLAYING 상태에서만 동작)"""
-        if self._gigs.game_state.current_state == GameState.PLAYING:
-            self._gigs.game_state.show_score(7176)
+        # 테스트 모드일 때만 키보드 입력 처리
+        if hasattr(self._gigs, 'test_mode') and self._gigs.test_mode:
+            print(f"[INPUT TEST] B key pressed - current state: {self._gigs.game_state.current_state}")
+            if self._gigs.game_state.current_state == GameState.PLAYING:
+                print("[INPUT TEST] Calling show_score(7176)")
+                self._gigs.game_state.show_score(7176)
+            else:
+                print("[INPUT TEST] B key ignored (not in PLAYING state)")
         return True
     
     def _handle_escape(self):
         """ESC 키 처리 (게임 종료)"""
+        if hasattr(self._gigs, 'test_mode') and self._gigs.test_mode:
+            print("[INPUT TEST] ESC key pressed - exiting...")
         return self._quit_game()
     
     def _quit_game(self):
@@ -90,35 +114,3 @@ class InputHandler:
         """
         if key in self._key_mappings:
             del self._key_mappings[key]
-    
-    def handle_serial_input(self, input_value):
-        """
-        시리얼 입력 처리 (원래 handle_input 메서드)
-        
-        Args:
-            input_value: 입력된 값 (문자열 또는 숫자)
-        """
-        print(f"Input received: {input_value}, Current state: {self._gigs.game_state.current_state}")
-        
-        if input_value == 'a':
-            if self._gigs.game_state.current_state == GameState.WAITING:
-                if self._gigs.use_tcp:
-                    self._gigs.tcp_handler.send_message('-1')
-                self._gigs.game_state.start_countdown()
-            # elif self._gigs.game_state.current_state == GameState.INIT:
-            #     self._gigs.game_state.show_waiting()  # INIT 상태에서 WAITING으로 강제 전환
-            # elif self._gigs.game_state.current_state == GameState.SCORE:
-            #     if self._gigs.use_tcp:
-            #         self._gigs.tcp_handler.send_message('-4')
-            #     self._gigs.game_state.show_result(self._gigs.score_manager.get_total_score())  # 점수를 전달하여 결과 화면으로
-            # elif self._gigs.game_state.current_state == GameState.PLAYING:
-            #     self._gigs.game_state.show_score(7176)
-        else:
-            if self._gigs.game_state.current_state == GameState.PLAYING:
-                try:
-                    score = int(input_value)
-                    print(f"Score received: {score}")
-                    if score > 0:
-                        self._gigs.score_manager.add_score(score)
-                except ValueError:
-                    pass  # 숫자로 변환할 수 없는 입력은 무시

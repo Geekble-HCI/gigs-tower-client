@@ -4,9 +4,8 @@ import threading
 import time
 
 class SerialHandler:
-    def __init__(self, input_callback):
+    def __init__(self):
         self.serial_ports = {}  # 여러 시리얼 포트를 저장하는 딕셔너리
-        self.input_callback = input_callback
         self.excluded_ports = [
             '/dev/cu.debug-console',
             '/dev/cu.Bluetooth-Incoming-Port',
@@ -59,8 +58,7 @@ class SerialHandler:
                 try:
                     if port.is_open and port.in_waiting:
                         received_data = port.readline().decode().strip()
-                        print(f"Input from {port_device}")  # 어느 포트에서 입력이 왔는지 확인
-                        self.input_callback(received_data)
+                        print(f"Input from {port_device}: {received_data}")  # 어느 포트에서 입력이 왔는지 확인
                 except:
                     print(f"Error reading from {port_device}")
                     break

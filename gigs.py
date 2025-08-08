@@ -14,14 +14,14 @@ class GIGS:
     # 초기화 관련 메서드들
     # ============================================================================
     
-    def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False, score_wait_time=15, countdown_time=10, mqtt_broker=None, mqtt_client_id=None):
+    def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False, score_wait_time=15, countdown_time=10, mqtt_broker=None, mqtt_client_id=None, test_mode=False):
         pygame.init()
         
         self.sound_manager = SoundManager(game_type)
         self.screen_manager = ScreenManager()
         self.input_handler = InputHandler(self)
         self.score_manager = ScoreManager()
-        self.serial_handler = SerialHandler(self.input_handler.handle_serial_input)
+        self.serial_handler = SerialHandler()
         self.mqtt_manager = MQTTManager(mqtt_broker, mqtt_client_id, self.sound_manager)
 
         self.game_state = GameStateManager(
@@ -33,17 +33,24 @@ class GIGS:
             self.mqtt_manager.get_client()
         )
 
-        self.init_mode(show_enter, show_exit, use_tcp)
+        # test_mode 저장
+        self.test_mode = test_mode
+        
+        self.init_mode(show_enter, show_exit, use_tcp, test_mode)
 
-    def init_mode(self, show_enter, show_exit, use_tcp):
+    def init_mode(self, show_enter, show_exit, use_tcp, test_mode):
+        if test_mode:
+            # 테스트 모드: 키보드 입력 활성화 메시지 출력
+            print("[TEST MODE] Keyboard input enabled:")
+            print("  - A: Start countdown")
+            print("  - B: Show score (when playing)")
+            print("  - ESC: Exit")
+        
         if show_enter:
-            # 입장 모드: 입장 화면만 표시
             self.game_state.show_enter()
         elif show_exit:
-            # 퇴장 모드: 퇴장 화면만 표시
             self.game_state.show_exit()
         else:
-            # 일반 게임 모드: 초기화 화면 표시 후 통신 설정
             self.game_state.show_init()
             self.setup_communications(use_tcp)
 
@@ -66,7 +73,10 @@ class GIGS:
 
     def wait_for_connections(self):
         while True:
-            self.input_handler.process_events()
+            running = self.input_handler.process_events()
+            if not running:
+                return
+                
             self.screen_manager.process_message_queue()
             
             if self.game_state.current_state in [GameState.ENTER, GameState.EXIT]:
@@ -108,11 +118,11 @@ class GIGS:
             self.game_state.show_score(final_score)
 
     def run(self):
+        # 테스트 모드 상관없이 연결 대기
         self.wait_for_connections()
         
         running = True
         while running:
             running = self.input_handler.process_events()
-            
             self.screen_manager.process_message_queue()
             pygame.time.wait(10)
