@@ -94,7 +94,13 @@ class MQTTManager:
             "ip_address": self.mqtt_client.ip_address,
             "registered_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }
-        self.mqtt_client.publish(topic, payload, qos=1, retain=True)
+        self.mqtt_client.publish(
+            topic, 
+            payload, 
+            qos=1, 
+            retain=True, # 메세지 영속성 설정
+            ttl_seconds=300  # 메세지 만료시간 설정: 5분
+        )
         print(f"[MQTT] Device register published → {topic}: {payload}")
 
     def _handle_mqtt_command(self, topic, payload):

@@ -1,6 +1,8 @@
 import threading
 import time
 import paho.mqtt.client as mqtt
+from paho.mqtt.properties import Properties
+from paho.mqtt.packettypes import PacketTypes
 import json
 from .local_ip_resolver import LocalIpResolver
 
@@ -22,11 +24,14 @@ class MQTTClient:
         
         print(f"[MQTT] Device IP: {self.ip_address}")
         
-        self.client = mqtt.Client(client_id=self.device_id)
+        self.client = mqtt.Client(
+            client_id=self.device_id,
+            protocol=mqtt.MQTTv5    
+        )
 
         # 콜백
-        self.client.on_connect = self._on_connect
-        self.client.on_disconnect = self._on_disconnect
+        self.client.on_connect = self._on_connect_v5
+        self.client.on_disconnect = self._on_disconnect_v5
         self.client.on_publish = self._on_publish
         self.client.on_message = self._on_message  # 메시지 수신 콜백 추가
 
@@ -86,29 +91,38 @@ class MQTTClient:
             time.sleep(delay)
             attempt += 1
 
-    # def connect(self):
-    #     try:
-    #         self.client.connect(self.broker_address, self.port, 60)
-    #         self.client.loop_start() # Start a new thread to process network traffic
-    #     except Exception as e:
-    #         print(f"[MQTT] connection error: {e}")
-
     def disconnect(self):
+        """정상 종료(남은 네트워크 작업 정리 후 쓰레드 종료)"""
         self.client.loop_stop()
         self.client.disconnect()
 
-    def publish(self, topic, payload, qos=1, retain=False):
-        """연결된 상태에서만 실제 발행"""
+    def publish(self, topic, payload, qos=1, retain=False, ttl_seconds: int | None = None):
+        """
+        연결된 상태에서만 발행 가능
+         - ttl_seconds: 보관 메시지 자동 만료 설정 (MQTT v5 Message Expiry Interval)
+        """
         if not self.is_connected:
             print("[MQTT] Publish skipped: not connected")
             return
+        
+        properties = None
+        if ttl_seconds is not None:
+            properties = Properties(PacketTypes.PUBLISH)
+            properties.MessageExpiryInterval = int(ttl_seconds)
+        
         try:
-            msg_info = self.client.publish(topic, json.dumps(payload), qos=qos, retain=retain)
+            msg_info = self.client.publish(
+                topic, 
+                json.dumps(payload), 
+                qos=qos, 
+                retain=retain,
+                properties=properties
+            )
             if hasattr(msg_info, "rc"):
                 if msg_info.rc == mqtt.MQTT_ERR_SUCCESS:
-                    print(f"[MQTT] Publish enqueued: topic='{topic}', mid={getattr(info, 'mid', None)}")
+                    print(f"[MQTT] Publish enqueued: topic='{topic}', playload={payload}, mid={getattr(msg_info, 'mid', None)}")
                 else:
-                    print(f"[MQTT] Publish rc={msg_info.rc}")
+                     print(f"[MQTT] Publish rc={msg_info.rc} (topic='{topic}')")
         except Exception as e:
             print(f"[MQTT] Publish exception: {e}")
 
@@ -116,27 +130,28 @@ class MQTTClient:
         """수동으로 토픽 구독"""
         try:
             self.client.subscribe(topic, qos)
-            print(f"[MQTT] Subscribed to topic: {topic}")
+            print(f"[MQTT] Subscribed to topic: {topic} (qos={qos})")
         except Exception as e:
             print(f"MQTT subscribe error: {e}")
 
     # -------- 내부 콜백 --------
-    def _on_connect(self, client, userdata, flags, rc):
-        """MQTT 연결 시 자동 호출되는 콜백"""
-        if rc == 0:
+    def _on_connect_v5(self, client, userdata, flags, reason_code, properties):
+        """연결 성공/실패 콜백 (MQTT v5)"""
+        if reason_code == mqtt.MQTT_ERR_SUCCESS or int(reason_code) == 0:
             self.is_connected = True
-            print(f"[MQTT] Connected to {self.broker_address}:{self.port}")
-            
-            # 저장한 구독 토픽들 구독 처리
-            for topic, qos in self.subscriptions:
-                self.subscribe(topic, qos)
+            print(f"[MQTT] Connected to {self.broker_address}:{self.port} (reason_code={reason_code})")
+            # 보류 중이던 구독 처리
+            # for topic, qos in self.subscriptions:
+            #     self.subscribe(topic, qos)
             self._conn_event.set()
         else:
-             print(f"[MQTT] Failed to connect: rc={rc}")
-    
-    def _on_disconnect(self, client, userdata, rc):
+            print(f"[MQTT] Failed to connect: reason_code={reason_code}")
+            # 연결 실패 시에도 wait()가 깨어날 수 있게 이벤트 set (재시도 루프로)
+            self._conn_event.set()
+
+    def _on_disconnect_v5(self, client, userdata, reason_code, properties):
         self.is_connected = False
-        print(f"[MQTT] Disconnected from MQTT Broker with code {rc}")
+        print(f"[MQTT] Disconnected (reason_code={reason_code})")
     
     def _on_publish(self, client, userdata, mid):
         print(f"[MQTT] Publish successful: mid={mid}")
