@@ -29,7 +29,7 @@ class LocalIpResolver:
                         if ip and not ip.startswith("127."):
                             return ip
             except Exception as e:
-                print(f"[IP] ifconfig 실패: {e}")
+                print(f"[IP] ifconfig failed: {e}")
             
             # Linux hostname -I 방법 시도
             try:
@@ -39,7 +39,7 @@ class LocalIpResolver:
                     if not ip.startswith("127."):
                         return ip
             except Exception as e:
-                print(f"[IP] hostname -I 실패: {e}")
+                print(f"[IP] hostname -I failed: {e}")
                 
             # Linux ip addr 방법 시도
             try:
@@ -49,7 +49,7 @@ class LocalIpResolver:
                     if 'inet ' in line and not '127.0.0.1' in line:
                         return line.strip().split(' ')[1].split('/')[0]
             except Exception as e:
-                print(f"[IP] ip addr 실패: {e}")
+                print(f"[IP] ip addr failed: {e}")
                 
             return None
 
@@ -59,4 +59,4 @@ class LocalIpResolver:
         elif system in ['Linux', 'Darwin']:  # Darwin = macOS
             return get_ip_unix()
         else:
-            raise Exception(f"지원되지 않는 OS입니다: {system}")
+            raise Exception(f"Unsupported OS: {system}")

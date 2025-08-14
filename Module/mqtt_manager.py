@@ -24,7 +24,7 @@ class MQTTManager:
             self._setup_mqtt_broker_ip()
         
         if not self.mqtt_broker_ip:
-             raise RuntimeError("[BROKER] 브로커 탐색 실패: 초기 연결이 필수이므로 중단합니다.")
+             raise RuntimeError("[BROKER] Broker discovery failed: Initial connection required, stopping.")
         
         self._setup_mqtt_client(self.mqtt_broker_ip, device_id)
         self._setup_command_handler(sound_manager)
@@ -37,7 +37,7 @@ class MQTTManager:
             max_backoff=8.0,
         )
         if not connected:
-            raise RuntimeError("[MQTT] 초기 연결 실패: 재시도 소진")
+            raise RuntimeError("[MQTT] Initial connection failed: Retry attempts exhausted")
 
         #  연결 직후 장치 등록 메시지 반드시 발행
         self._publish_device_register()
@@ -50,12 +50,12 @@ class MQTTManager:
         self.mqtt_broker_ip =scanner.scan()
 
         elapsed = round(time.time() - start_time, 2)
-        print(f"[BROKER] 검색 소요 시간: {elapsed}초")
+        print(f"[BROKER] Search duration: {elapsed}s")
         
         if self.mqtt_broker_ip:
-            print(f"[BROKER] 연결 시도 대상: {self.mqtt_broker_ip}")
+            print(f"[BROKER] Connection target: {self.mqtt_broker_ip}")
         else:
-            print("[BROKER] 브로커 탐색 실패")
+            print("[BROKER] Broker discovery failed")
 
     def _setup_mqtt_client(self, mqtt_broker_ip, device_id):
         """MQTT 클라이언트 설정 및 연결"""
@@ -83,7 +83,7 @@ class MQTTManager:
     def _publish_device_register(self):
         """연결 직후 장치 등록 메시지 강제 발행"""
         if not self.mqtt_client or not self.mqtt_client.is_connected:
-            raise RuntimeError("[MQTT] 장치등록 실패: 아직 연결되지 않음")
+            raise RuntimeError("[MQTT] Device registration failed: Not connected yet")
 
         # if self.mqtt_client.ip_address in (None, "", "unknown"):
             # print("[MQTT] 경고: IP 주소가 unknown 상태지만 등록을 시도합니다.")

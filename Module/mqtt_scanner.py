@@ -33,12 +33,12 @@ class MqttBrokerScanner:
             f.write(ip)
 
     def scan(self, start=1, end=254):
-        print(f"[SCANNER] 스캔 범위: {self.base_ip}{start} ~ {self.base_ip}{end}")
+        print(f"[SCANNER] Scan range: {self.base_ip}{start} ~ {self.base_ip}{end}")
 
         # [1단계] 캐시된 IP 우선 테스트
         cached_ip = self._load_cached_ip()
         if cached_ip and self._is_broker_alive(cached_ip):
-            print(f"[SCANNER] 캐시된 브로커 사용: {cached_ip}:{self.port}")
+            print(f"[SCANNER] Using cached broker: {cached_ip}:{self.port}")
             return cached_ip
 
         # [2단계] 병렬 스캔
@@ -50,10 +50,10 @@ class MqttBrokerScanner:
             for future in as_completed(future_to_ip):
                 result = future.result()
                 if result:
-                    print(f"\n[SCANNER] 브로커 발견: {result}:{self.port}")
+                    print(f"\n[SCANNER] Broker found: {result}:{self.port}")
                     self._save_cached_ip(result)
                     return result
 
-        print("\n[SCANNER] 브로커를 찾지 못했습니다.")
+        print("\n[SCANNER] No broker found.")
         return None
    

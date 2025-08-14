@@ -17,9 +17,9 @@ class MQTTClient:
         try:
             self.ip_address = LocalIpResolver.resolve_ip()
             if not self.ip_address:
-                raise RuntimeError("IP 주소를 가져올 수 없습니다")
+                raise RuntimeError("Unable to get IP address")
         except Exception as e:
-            print(f"[MQTT] IP 주소 해석 실패: {e}")
+            print(f"[MQTT] IP address resolution failed: {e}")
             self.ip_address = "unknown"
         
         print(f"[MQTT] Device IP: {self.ip_address}")
@@ -67,27 +67,27 @@ class MQTTClient:
                 self.client.loop_start()
                 self._loop_started = True
             except Exception as e:
-                print(f"[MQTT] loop_start 예외: {e}")
+                print(f"[MQTT] loop_start exception: {e}")
 
         attempt = 0
         while True:
             try:
-                print(f"[MQTT] connect 시도 #{attempt+1} → {self.broker_address}:{self.port}")
+                print(f"[MQTT] connect attempt #{attempt+1} → {self.broker_address}:{self.port}")
                 self._conn_event.clear()
                 self.client.connect(self.broker_address, self.port, keepalive)
             except Exception as e:
-                print(f"[MQTT] 소켓 연결 예외: {e}")
+                print(f"[MQTT] socket connection exception: {e}")
 
             if self._conn_event.wait(timeout=per_attempt_timeout) and self.is_connected:
-                print("[MQTT] 초기 연결 완료")
+                print("[MQTT] Initial connection established")
                 return True
 
             if attempt >= max_retries:
-                print("[MQTT] 초기 연결 실패: 재시도 한도 초과")
+                print("[MQTT] Initial connection failed: Retry limit exceeded")
                 return False
 
             delay = min(max_backoff, base_backoff * (2 ** attempt))
-            print(f"[MQTT] 재시도 대기 {delay:.1f}s")
+            print(f"[MQTT] Waiting for retry {delay:.1f}s")
             time.sleep(delay)
             attempt += 1
 
@@ -140,9 +140,9 @@ class MQTTClient:
         if reason_code == mqtt.MQTT_ERR_SUCCESS or int(reason_code) == 0:
             self.is_connected = True
             print(f"[MQTT] Connected to {self.broker_address}:{self.port} (reason_code={reason_code})")
-            # 보류 중이던 구독 처리
-            # for topic, qos in self.subscriptions:
-            #     self.subscribe(topic, qos)
+        
+            for topic, qos in self.subscriptions:
+                self.subscribe(topic, qos)
             self._conn_event.set()
         else:
             print(f"[MQTT] Failed to connect: reason_code={reason_code}")
@@ -163,6 +163,7 @@ class MQTTClient:
             payload = json.loads(payload_str)
             if self.message_callback:
                 self.message_callback(msg.topic, payload)
+            print(f"[DEBUG] Receive message: {payload}")
         except json.JSONDecodeError as e:
             print(f"[MQTT] JSON decode error: {e}")
             print(f"[MQTT] Raw payload: {msg.payload}")
