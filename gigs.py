@@ -14,7 +14,7 @@ class GIGS:
     # 초기화 관련 메서드들
     # ============================================================================
     
-    def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False, score_wait_time=15, countdown_time=10, mqtt_broker=None, mqtt_client_id=None, test_mode=False):
+    def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False, score_wait_time=15, countdown_time=10, mqtt_broker=None, device_id=None, test_mode=False):
         pygame.init()
         
         self.sound_manager = SoundManager(game_type)
@@ -22,7 +22,7 @@ class GIGS:
         self.input_handler = InputHandler(self)
         self.score_manager = ScoreManager()
         self.serial_handler = SerialHandler()
-        self.mqtt_manager = MQTTManager(mqtt_broker, mqtt_client_id, self.sound_manager)
+        self.mqtt_manager = MQTTManager(mqtt_broker, device_id, self.sound_manager)
 
         self.game_state = GameStateManager(
             self.screen_manager.update_screen,

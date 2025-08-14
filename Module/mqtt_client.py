@@ -7,10 +7,10 @@ from .local_ip_resolver import LocalIpResolver
 class MQTTClient:
     """초기 연결을 보장하고, 연결 이후에만 publish되도록 하는 래퍼"""
 
-    def __init__(self, broker_address, port, client_id):
+    def __init__(self, broker_address, port, device_id):
         self.broker_address = broker_address
         self.port = port
-        self.client_id = client_id
+        self.device_id = device_id
         
         try:
             self.ip_address = LocalIpResolver.resolve_ip()
@@ -22,7 +22,7 @@ class MQTTClient:
         
         print(f"[MQTT] Device IP: {self.ip_address}")
         
-        self.client = mqtt.Client(client_id=self.client_id)
+        self.client = mqtt.Client(client_id=self.device_id)
 
         # 콜백
         self.client.on_connect = self._on_connect
@@ -97,7 +97,7 @@ class MQTTClient:
         self.client.loop_stop()
         self.client.disconnect()
 
-    def publish(self, topic, payload, qos=1, retain=True):
+    def publish(self, topic, payload, qos=1, retain=False):
         """연결된 상태에서만 실제 발행"""
         if not self.is_connected:
             print("[MQTT] Publish skipped: not connected")

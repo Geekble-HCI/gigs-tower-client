@@ -17,7 +17,7 @@ def parse_arguments():
     parser.add_argument('--score-wait-time', type=int, default=15, help='Wait time for the score screen (default: 15 seconds)')
     parser.add_argument('--countdown-time', type=int, default=10, help='Countdown time for the game start (default: 10 seconds)')
     parser.add_argument('--mqtt-broker', type=str, default=None, help='MQTT broker address')
-    parser.add_argument('--mqtt-client-id', type=str, default='01', help='MQTT client ID')
+    parser.add_argument('--device_id', type=str, default='01', help='MQTT client ID')
     parser.add_argument('--test', action='store_true', help='Enable input handler test mode')
     return parser.parse_args()
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
         score_wait_time=args.score_wait_time,
         countdown_time=args.countdown_time,
         mqtt_broker=args.mqtt_broker,
-        mqtt_client_id=args.mqtt_client_id,
+        device_id=args.device_id,
         test_mode=args.test
     )
     game.run()

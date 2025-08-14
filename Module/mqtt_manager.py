@@ -8,12 +8,12 @@ from .command_handler import CommandDispatcher, CommandType, VolumeCommand
 class MQTTManager:
     """MQTT 연결 및 명령 처리를 관리하는 클래스"""
     
-    def __init__(self, mqtt_broker_ip=None, mqtt_client_id=None, sound_manager=None):
+    def __init__(self, mqtt_broker_ip=None, device_id=None, sound_manager=None):
         """
         MQTTManager 초기화
         Args:
             mqtt_broker_ip: MQTT 브로커 주소
-            mqtt_client_id: MQTT 클라이언트 ID
+            device_id: 장치 식별 ID
             sound_manager: 사운드 매니저 인스턴스 (볼륨 명령 처리용)
         """
         self.mqtt_client = None
@@ -26,7 +26,7 @@ class MQTTManager:
         if not self.mqtt_broker_ip:
              raise RuntimeError("[BROKER] 브로커 탐색 실패: 초기 연결이 필수이므로 중단합니다.")
         
-        self._setup_mqtt_client(self.mqtt_broker_ip, mqtt_client_id)
+        self._setup_mqtt_client(self.mqtt_broker_ip, device_id)
         self._setup_command_handler(sound_manager)
 
         # 연결 완료를 블로킹으로 보장
@@ -57,9 +57,9 @@ class MQTTManager:
         else:
             print("[BROKER] 브로커 탐색 실패")
 
-    def _setup_mqtt_client(self, mqtt_broker_ip, mqtt_client_id):
+    def _setup_mqtt_client(self, mqtt_broker_ip, device_id):
         """MQTT 클라이언트 설정 및 연결"""
-        self.mqtt_client = MQTTClient(mqtt_broker_ip, 1883, mqtt_client_id)
+        self.mqtt_client = MQTTClient(mqtt_broker_ip, 1883, device_id)
         
         # IP 주소 기반 토픽 구독 설정
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/state")
@@ -68,7 +68,7 @@ class MQTTManager:
         # 글로벌 토픽도 유지 (관리용) - 현재는 주석 처리
         # self.mqtt_client.add_subscription("device/+/state")
         # self.mqtt_client.add_subscription("device/+/command")
-        # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.client_id}/ping")
+        # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/ping")
         # self.mqtt_client.add_subscription("broadcast/#")
         
         # 메시지 콜백 설정
@@ -90,7 +90,7 @@ class MQTTManager:
 
         topic = "device/register"
         payload = {
-            "client_id": self.mqtt_client.client_id,
+            "device_id": self.mqtt_client.device_id,
             "ip_address": self.mqtt_client.ip_address,
             "registered_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }
