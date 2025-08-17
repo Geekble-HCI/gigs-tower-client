@@ -35,7 +35,7 @@ class GameStateManager:
             payload = {"device_id": self.device_id, "state": state }
             if score is not None:
                 payload["score"] = score
-            self.mqtt_client.publish(topic, payload)
+            self.mqtt_client.publish(topic, payload, qos=1, retain=False)
 
     def start_countdown(self):
         self.current_state = GameState.COUNTDOWN
