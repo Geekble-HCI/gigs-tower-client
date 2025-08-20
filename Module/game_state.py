@@ -39,14 +39,22 @@ class GameStateManager:
         self.device_id = mqtt_client.device_id if mqtt_client else "unknown_client"
         self.device_ip = mqtt_client.ip_address if mqtt_client else "unknown_ip"
 
-    def _get_game_name(self) -> str:
-        return self.GAME_MESSAGES.get(self.sound_manager.game_type, "칼로링머신")
+    @staticmethod
+    def get_game_name(game_type: int, remove_newline: bool = False) -> str:
+        """
+        game_type에 해당하는 게임명을 반환.
+        remove_newline=True일 경우, 줄바꿈(\n)을 공백으로 치환.
+        """
+        raw_name = GameStateManager.GAME_MESSAGES.get(game_type, "칼로링머신")
+        if remove_newline:
+            return raw_name.replace("\n", " ")
+        return raw_name
 
     def _build_payload(self, state: str, score: int | float | None = None) -> dict:
         payload = {
             "device_id": self.device_id,
             "game_type": self.sound_manager.game_type,
-            "game_name": self._get_game_name(),
+            "game_name": GameStateManager.get_game_name(self.sound_manager.game_type, True),
             "state": state,
         }
         if score is not None:
@@ -144,7 +152,8 @@ class GameStateManager:
         self.timer_thread = None
         self.sound_manager.stop_bgm()
         
-        game_title = self._get_game_name()
+        game_title = GameStateManager.get_game_name(self.sound_manager.game_type)
+
         self.screen_update_callback(f"{game_title}\n\n태그를 하면\n게임이 시작됩니다!")
 
     def show_init(self):

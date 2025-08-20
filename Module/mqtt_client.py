@@ -100,6 +100,7 @@ class MQTTClient:
         """
         연결된 상태에서만 발행 가능
          - ttl_seconds: 보관 메시지 자동 만료 설정 (MQTT v5 Message Expiry Interval)
+         - 한글 깨짐 방지: ensure_ascii=False + UTF-8 인코딩
         """
         if not self.is_connected:
             print("[MQTT] Publish skipped: not connected")
@@ -109,18 +110,31 @@ class MQTTClient:
         if ttl_seconds is not None:
             properties = Properties(PacketTypes.PUBLISH)
             properties.MessageExpiryInterval = int(ttl_seconds)
+            properties.PayloadFormatIndicator = 1
+            properties.ContentType = "application/json; charset=utf-8"
         
         try:
+            if isinstance(payload, (dict, list)):
+                data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            elif isinstance(payload, str):
+                data = payload.encode("utf-8")
+            elif isinstance(payload, (bytes, bytearray)):
+                data = payload
+            else:
+                data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+
             msg_info = self.client.publish(
                 topic, 
-                json.dumps(payload), 
+                data,
                 qos=qos, 
                 retain=retain,
                 properties=properties
             )
             if hasattr(msg_info, "rc"):
                 if msg_info.rc == mqtt.MQTT_ERR_SUCCESS:
-                    print(f"[MQTT] Publish enqueued: topic='{topic}', playload={payload}, mid={getattr(msg_info, 'mid', None)}")
+                    printable = payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)
+                    print(f"[MQTT] Publish enqueued → topic='{topic}', payload={printable}, mid={getattr(msg_info, 'mid', None)}")
                 else:
                      print(f"[MQTT] Publish rc={msg_info.rc} (topic='{topic}')")
         except Exception as e:
