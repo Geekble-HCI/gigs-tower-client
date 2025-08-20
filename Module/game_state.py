@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 from .sound_manager import SoundManager
@@ -13,6 +14,15 @@ class GameState:
     EXIT = "EXIT"    # 새로운 상태 추가
 
 class GameStateManager:
+    GAME_MESSAGES = {
+        1: "헬시 버거\n챌린지",
+        2: "꿀잠 방해꾼\nOUT!",
+        3: "불태워!\n칼로링머신",
+        4: "볼볼볼\n영양소",
+        5: "바이오데이터\n에어시소",
+        6: "슛잇!\n무빙 골대",
+    }
+
     def __init__(self, screen_update_callback, state_change_callback=None, game_type=1, score_wait_time=15, countdown_time=10, mqtt_client=None):
         self.current_state = GameState.INIT  # 초기 상태를 INIT으로 변경
         self.countdown = 10
@@ -28,14 +38,27 @@ class GameStateManager:
         self.mqtt_client = mqtt_client # MQTT 클라이언트 저장
         self.device_id = mqtt_client.device_id if mqtt_client else "unknown_client"
         self.device_ip = mqtt_client.ip_address if mqtt_client else "unknown_ip"
+
+    def _get_game_name(self) -> str:
+        return self.GAME_MESSAGES.get(self.sound_manager.game_type, "칼로링머신")
+
+    def _build_payload(self, state: str, score: int | float | None = None) -> dict:
+        payload = {
+            "device_id": self.device_id,
+            "game_type": self.sound_manager.game_type,
+            "game_name": self._get_game_name(),
+            "state": state,
+        }
+        if score is not None:
+            payload["score"] = score
+        return payload
         
     def _publish_state(self, state, score=None):
-        if self.mqtt_client:
-            topic = f"device/{self.device_ip}/state" # IP 주소 기반 topic
-            payload = {"device_id": self.device_id, "state": state }
-            if score is not None:
-                payload["score"] = score
-            self.mqtt_client.publish(topic, payload, qos=1, retain=False)
+        if not self.mqtt_client:
+            return
+        topic = f"device/{self.device_ip}/state"
+        payload = self._build_payload(state, score)
+        self.mqtt_client.publish(topic, json.dumps(payload), qos=1, retain=False)
 
     def start_countdown(self):
         self.current_state = GameState.COUNTDOWN
@@ -120,18 +143,8 @@ class GameStateManager:
             self.timer_thread.join(0)
         self.timer_thread = None
         self.sound_manager.stop_bgm()
-
-        # 게임 타입에 따른 메시지 설정
-        game_messages = {
-            1: "헬시 버거\n챌린지",
-            2: "꿀잠 방해꾼\nOUT!",
-            3: "불태워!\n칼로링머신",
-            4: "볼볼볼\n영양소",
-            5: "바이오데이터\n에어시소",
-            6: "슛잇!\n무빙 골대"
-        }
         
-        game_title = game_messages.get(self.sound_manager.game_type, "칼로링머신")
+        game_title = self._get_game_name()
         self.screen_update_callback(f"{game_title}\n\n태그를 하면\n게임이 시작됩니다!")
 
     def show_init(self):

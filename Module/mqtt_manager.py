@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import time
+from Module.game_state import GameStateManager
 from Module.mqtt_scanner import MqttBrokerScanner
 from .mqtt_client import MQTTClient
 from .command_handler import CommandDispatcher, CommandType, VolumeCommand
@@ -8,7 +9,7 @@ from .command_handler import CommandDispatcher, CommandType, VolumeCommand
 class MQTTManager:
     """MQTT 연결 및 명령 처리를 관리하는 클래스"""
     
-    def __init__(self, mqtt_broker_ip=None, device_id=None, sound_manager=None):
+    def __init__(self, mqtt_broker_ip=None, device_id=None, game_type=None, sound_manager=None):
         """
         MQTTManager 초기화
         Args:
@@ -18,6 +19,7 @@ class MQTTManager:
         """
         self.mqtt_client = None
         self.command_handler = None
+        self.game_type = game_type
         self.mqtt_broker_ip = mqtt_broker_ip
 
         if self.mqtt_broker_ip == None:
@@ -25,6 +27,9 @@ class MQTTManager:
         
         if not self.mqtt_broker_ip:
              raise RuntimeError("[BROKER] Broker discovery failed: Initial connection required, stopping.")
+        
+        if not device_id:
+            device_id = game_type
         
         self._setup_mqtt_client(self.mqtt_broker_ip, device_id)
         self._setup_command_handler(sound_manager)
@@ -64,10 +69,7 @@ class MQTTManager:
         # IP 주소 기반 토픽 구독 설정
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/state")
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/command")
-        
-        # 글로벌 토픽도 유지 (관리용) - 현재는 주석 처리
-        # self.mqtt_client.add_subscription("device/+/state")
-        # self.mqtt_client.add_subscription("device/+/command")
+    
         # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/ping")
         # self.mqtt_client.add_subscription("broadcast/#")
         
@@ -85,13 +87,14 @@ class MQTTManager:
         if not self.mqtt_client or not self.mqtt_client.is_connected:
             raise RuntimeError("[MQTT] Device registration failed: Not connected yet")
 
-        # if self.mqtt_client.ip_address in (None, "", "unknown"):
-            # print("[MQTT] 경고: IP 주소가 unknown 상태지만 등록을 시도합니다.")
+        game_name = GameStateManager.GAME_MESSAGES.get(self.game_type, "칼로링머신")
 
         topic = "device/register"
         payload = {
             "device_id": self.mqtt_client.device_id,
             "ip_address": self.mqtt_client.ip_address,
+            "game_type": self.game_type,
+            "game_name": game_name,
             "registered_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }
         self.mqtt_client.publish(
@@ -99,7 +102,7 @@ class MQTTManager:
             payload, 
             qos=1, 
             retain=True, # 메세지 영속성 설정
-            ttl_seconds=300  # 메세지 만료시간 설정: 5분
+            ttl_seconds=3600  # 메세지 만료시간 설정: 1시간
         )
         print(f"[MQTT] Device register published → {topic}: {payload}")
 
