@@ -3,13 +3,13 @@ import time
 from Module.game_state import GameStateManager
 from Module.mqtt_scanner import MqttBrokerScanner
 from .mqtt_client import MQTTClient
-from .command_handler import CommandDispatcher, CommandType, VolumeCommand
+from .command_handler import CommandDispatcher, CommandType, GameCommand, PingCommand, VolumeCommand
 
 
 class MQTTManager:
     """MQTT 연결 및 명령 처리를 관리하는 클래스"""
     
-    def __init__(self, mqtt_broker_ip=None, device_id=None, game_type=None, sound_manager=None):
+    def __init__(self, mqtt_broker_ip=None, device_id=None, game_type=None, sound_manager=None, game_handler=None):
         """
         MQTTManager 초기화
         Args:
@@ -32,7 +32,7 @@ class MQTTManager:
             device_id = game_type
         
         self._setup_mqtt_client(self.mqtt_broker_ip, device_id)
-        self._setup_command_handler(sound_manager)
+        self._setup_command_handler(sound_manager, game_handler)
 
         # 연결 완료를 블로킹으로 보장
         connected = self.mqtt_client.connect_blocking(
@@ -69,18 +69,29 @@ class MQTTManager:
         # IP 주소 기반 토픽 구독 설정
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/state")
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/command")
-    
+
+        # device ID 기반 토픽 구독 설정
+        self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/state")
+        self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/command")
         # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/ping")
+
         # self.mqtt_client.add_subscription("broadcast/#")
         
         # 메시지 콜백 설정
         self.mqtt_client.set_message_callback(self._handle_mqtt_command)
     
-    def _setup_command_handler(self, sound_manager):
+    def _setup_command_handler(self, sound_manager, game_handler):
         """MQTT 명령 핸들러 설정"""
         if self.mqtt_client and sound_manager:
             self.command_handler = CommandDispatcher()
             self.command_handler.register(CommandType.VOLUME, VolumeCommand(sound_manager))
+            self.command_handler.register([
+                CommandType.GAME_START,
+                CommandType.GAME_STOP,
+                CommandType.GAME_RESET
+                ], GameCommand(game_handler))
+            # TODO: ping, pong 테스트 
+            # self.command_handler.register(CommandType.PING, PingCommand())
     
     def _publish_device_register(self, game_type):
         """연결 직후 장치 등록 메시지 강제 발행"""
@@ -134,16 +145,6 @@ class MQTTManager:
     def get_client(self):
         """MQTT 클라이언트 인스턴스 반환 (GameStateManager에서 사용)"""
         return self.mqtt_client
-    
-    def add_command_handler(self, command_type, handler):
-        """새로운 명령 핸들러 추가
-        
-        Args:
-            command_type: 명령 타입
-            handler: 핸들러 인스턴스
-        """
-        if self.command_handler:
-            self.command_handler.register(command_type, handler)
     
     def disconnect(self):
         """MQTT 연결 해제"""

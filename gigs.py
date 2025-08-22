@@ -1,4 +1,5 @@
 import pygame
+from Module.game_handler import GameHandler
 from Module.sound_manager import SoundManager
 from Module.tcp_handler import TCPHandler
 from Module.serial_handler import SerialHandler
@@ -20,9 +21,10 @@ class GIGS:
         self.sound_manager = SoundManager(game_type)
         self.screen_manager = ScreenManager()
         self.input_handler = InputHandler(self)
+        self.game_handler = GameHandler(self)
         self.score_manager = ScoreManager()
         self.serial_handler = SerialHandler()
-        self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager)
+        self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, self.game_handler)
 
         self.game_state = GameStateManager(
             self.screen_manager.update_screen,
