@@ -5,7 +5,7 @@
 
 SCREEN_TYPE="Enter"
 DEVICE_ID=7
-PROJECT_DIR="/home/pi/samyang-pop-client"
+PROJECT_DIR="/home/pi/samyang-pop-client/gigs-tower"
 LOG_FILE="/home/pi/gigs-enter.log"
 
 echo "========================================" >> $LOG_FILE

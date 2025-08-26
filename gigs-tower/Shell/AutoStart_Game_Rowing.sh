@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# GIGS Game Client - Siso Auto Start Script
-# 바이오데이터 에어시소 자동 시작 스크립트
+# GIGS Game Client - Rowing Auto Start Script
+# 불태워! 칼로링머신 자동 시작 스크립트
 
-GAME_NAME="Siso"
-GAME_TYPE=5
-DEVICE_ID=5
-PROJECT_DIR="/home/pi/samyang-pop-client"
-LOG_FILE="/home/pi/gigs-siso.log"
+GAME_NAME="Rowing"
+GAME_TYPE=3
+DEVICE_ID=3
+PROJECT_DIR="/home/pi/samyang-pop-client/gigs-tower"
+LOG_FILE="/home/pi/gigs-rowing.log"
 
 echo "========================================" >> $LOG_FILE
 echo "$(date): Starting GIGS Game $GAME_NAME Client..." >> $LOG_FILE
@@ -45,7 +45,7 @@ echo "$(date): Virtual environment activated" >> $LOG_FILE
 # 게임 실행 (무한 재시작)
 while true; do
     echo "$(date): Starting $GAME_NAME game client (Type: $GAME_TYPE, Device ID: $DEVICE_ID)..." >> $LOG_FILE
-    python3 pop-client.py --type $GAME_TYPE --device_id $DEVICE_ID >> $LOG_FILE 2>&1
+    python3 pop-client.py --tcp --type $GAME_TYPE --countdown-time 30 --score-wait-time 35 --device_id $DEVICE_ID >> $LOG_FILE 2>&1
     echo "$(date): Game client stopped. Restarting in 10 seconds..." >> $LOG_FILE
     sleep 10
 done

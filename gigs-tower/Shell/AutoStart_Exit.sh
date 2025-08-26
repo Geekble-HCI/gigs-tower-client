@@ -5,7 +5,7 @@
 
 SCREEN_TYPE="Exit"
 DEVICE_ID=8
-PROJECT_DIR="/home/pi/samyang-pop-client"
+PROJECT_DIR="/home/pi/samyang-pop-client/gigs-tower"
 LOG_FILE="/home/pi/gigs-exit.log"
 
 echo "========================================" >> $LOG_FILE

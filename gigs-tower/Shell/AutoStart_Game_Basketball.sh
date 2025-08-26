@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# GIGS Game Client - Burger Auto Start Script
-# 헬시 버거 챌린지 자동 시작 스크립트
+# GIGS Game Client - Basketball Auto Start Script
+# 농구 게임 자동 시작 스크립트
 
-GAME_NAME="Burger"
-GAME_TYPE=1
-DEVICE_ID=1
-PROJECT_DIR="/home/pi/samyang-pop-client"
-LOG_FILE="/home/pi/gigs-burger.log"
+GAME_NAME="Basketball"
+GAME_TYPE=6
+DEVICE_ID=6
+PROJECT_DIR="/home/pi/samyang-pop-client/gigs-tower"
+LOG_FILE="/home/pi/gigs-basketball.log"
 
 echo "========================================" >> $LOG_FILE
 echo "$(date): Starting GIGS Game $GAME_NAME Client..." >> $LOG_FILE
@@ -45,7 +45,7 @@ echo "$(date): Virtual environment activated" >> $LOG_FILE
 # 게임 실행 (무한 재시작)
 while true; do
     echo "$(date): Starting $GAME_NAME game client (Type: $GAME_TYPE, Device ID: $DEVICE_ID)..." >> $LOG_FILE
-    python3 pop-client.py --tcp --type $GAME_TYPE --device_id $DEVICE_ID >> $LOG_FILE 2>&1
+    python3 pop-client.py --type $GAME_TYPE --device_id $DEVICE_ID >> $LOG_FILE 2>&1
     echo "$(date): Game client stopped. Restarting in 10 seconds..." >> $LOG_FILE
     sleep 10
 done

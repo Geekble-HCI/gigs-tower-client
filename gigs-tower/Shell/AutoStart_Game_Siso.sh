@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# GIGS Game Client - Basketball Auto Start Script
-# 농구 게임 자동 시작 스크립트
+# GIGS Game Client - Siso Auto Start Script
+# 바이오데이터 에어시소 자동 시작 스크립트
 
-GAME_NAME="Basketball"
-GAME_TYPE=6
-DEVICE_ID=6
-PROJECT_DIR="/home/pi/samyang-pop-client"
-LOG_FILE="/home/pi/gigs-basketball.log"
+GAME_NAME="Siso"
+GAME_TYPE=5
+DEVICE_ID=5
+PROJECT_DIR="/home/pi/samyang-pop-client/gigs-tower"
+LOG_FILE="/home/pi/gigs-siso.log"
 
 echo "========================================" >> $LOG_FILE
 echo "$(date): Starting GIGS Game $GAME_NAME Client..." >> $LOG_FILE

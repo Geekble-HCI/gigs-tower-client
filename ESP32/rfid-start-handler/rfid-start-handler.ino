@@ -38,6 +38,6 @@ void loop() {
   if (apduLen > 0) {
     // 최초 APDU 수신 시
     Serial.println('a');
-    delay(200);
+    delay(5000);
   }
 }

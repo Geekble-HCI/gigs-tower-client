@@ -38,7 +38,7 @@ chmod +x Shell/AutoStart_Game_Basketball.sh
 crontab -e
 
 # 다음 라인 추가:
-# @reboot /home/pi/samyang-pop-client/Shell/AutoStart_Game_Basketball.sh
+# @reboot /home/pi/samyang-pop-client/gigs-tower/Shell/AutoStart_Game_Basketball.sh
 ```
 
 ## 🎮 지원 게임
@@ -185,61 +185,62 @@ python3 pop-client.py --type 5 --device_id 5 --test
 
 ```
 samyang-pop-client/
-├── pop-client.py              # 메인 엔트리 포인트
-├── gigs.py                   # 핵심 게임 클래스
-├── requirements.txt          # Python 의존성
-├── README.md                # 프로젝트 문서
-│
-├── Module/                   # 핵심 모듈
-│   ├── game_handler.py      # 게임 로직 처리
-│   ├── game_state.py        # 게임 상태 관리
-│   ├── screen_manager.py    # 화면 표시 관리
-│   ├── sound_manager.py     # 사운드 관리 (싱글톤)
-│   ├── mqtt_manager.py      # MQTT 통신 관리
-│   ├── serial_handler.py    # 시리얼 통신
-│   ├── tcp_handler.py       # TCP 통신
-│   ├── input_handler.py     # 입력 처리
-│   ├── score_manager.py     # 점수 관리
-│   ├── command_handler.py   # 명령 처리
-│   ├── mqtt_client.py       # MQTT 클라이언트
-│   ├── mqtt_scanner.py      # MQTT 브로커 스캔
-│   └── local_ip_resolver.py # IP 주소 확인
-│
-├── ESP32/                    # ESP32 펌웨어
-│   ├── geekble-nano-handler/
+├── README.md                # 프로젝트 전체 문서
+├── esp32/                   # ESP32 펌웨어 (별도 폴더)
+│   ├── README.md
 │   ├── rfid-button-handler/
 │   └── rfid-start-handler/
 │
-├── Shell/                    # 자동 시작 스크립트
-│   ├── AutoStart_Enter.sh
-│   ├── AutoStart_Exit.sh
-│   ├── AutoStart_Game_Basketball.sh
-│   ├── AutoStart_Game_Burger.sh
-│   ├── AutoStart_Game_Pool.sh
-│   ├── AutoStart_Game_Rowing.sh
-│   ├── AutoStart_Game_Siso.sh
-│   └── AutoStart_Game_Sleep.sh
-│
-├── Sound/                    # 사운드 파일
-│   ├── init.mp3
-│   ├── wait.wav
-│   ├── countdown.wav
-│   ├── playing_1.wav ~ playing_6.wav
-│   ├── score.wav
-│   ├── result.wav
-│   ├── enter.wav
-│   ├── exit.wav
-│   └── Legacy/               # 레거시 사운드
-│
-├── Image/                    # 이미지 자원
-│   └── bg.png               # 배경 이미지
-│
-├── Font/                     # 폰트 파일
-│   └── RoundSquare.ttf      # 게임 폰트
-│
-└── Example/                  # 예제 코드
-    ├── audio_test.py
-    └── tcp-server.py
+└── gigs-tower/              # 게임 클라이언트 메인 코드
+    ├── pop-client.py        # 메인 엔트리 포인트
+    ├── gigs.py             # 핵심 게임 클래스
+    ├── requirements.txt    # Python 의존성
+    │
+    ├── Module/             # 핵심 모듈
+    │   ├── game_handler.py      # 게임 로직 처리
+    │   ├── game_state.py        # 게임 상태 관리
+    │   ├── screen_manager.py    # 화면 표시 관리
+    │   ├── sound_manager.py     # 사운드 관리 (싱글톤)
+    │   ├── mqtt_manager.py      # MQTT 통신 관리
+    │   ├── serial_handler.py    # 시리얼 통신
+    │   ├── tcp_handler.py       # TCP 통신
+    │   ├── input_handler.py     # 입력 처리
+    │   ├── score_manager.py     # 점수 관리
+    │   ├── command_handler.py   # 명령 처리
+    │   ├── mqtt_client.py       # MQTT 클라이언트
+    │   ├── mqtt_scanner.py      # MQTT 브로커 스캔
+    │   └── local_ip_resolver.py # IP 주소 확인
+    │
+    ├── Shell/              # 자동 시작 스크립트
+    │   ├── AutoStart_Enter.sh
+    │   ├── AutoStart_Exit.sh
+    │   ├── AutoStart_Game_Basketball.sh
+    │   ├── AutoStart_Game_Burger.sh
+    │   ├── AutoStart_Game_Pool.sh
+    │   ├── AutoStart_Game_Rowing.sh
+    │   ├── AutoStart_Game_Siso.sh
+    │   └── AutoStart_Game_Sleep.sh
+    │
+    ├── Sound/              # 사운드 파일
+    │   ├── init.mp3
+    │   ├── wait.wav
+    │   ├── countdown.wav
+    │   ├── playing_1.wav ~ playing_6.wav
+    │   ├── score.wav
+    │   ├── result.wav
+    │   ├── enter.wav
+    │   ├── exit.wav
+    │   └── Legacy/             # 레거시 사운드
+    │
+    ├── Image/              # 이미지 자원
+    │   └── bg.png         # 배경 이미지
+    │
+    ├── Font/               # 폰트 파일
+    │   └── RoundSquare.ttf # 게임 폰트
+    │
+    └── Example/            # 예제 코드
+        ├── audio_test.py
+        └── tcp-server.py
 ```
 
 ## 🔗 핵심 의존성
