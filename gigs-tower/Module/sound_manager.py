@@ -1,4 +1,5 @@
 import pygame
+from paths import snd
 
 class SoundManager:
     _instance = None  # 싱글톤 인스턴스
@@ -20,14 +21,14 @@ class SoundManager:
         
         # BGM 사운드
         self.bgm_sounds = {
-            'init': self._load_sound('Sound/init.mp3'),
-            'waiting': self._load_sound('Sound/wait.wav'),
-            'countdown': self._load_sound('Sound/countdown.wav'),
-            'playing': self._load_sound(f'Sound/playing_{self.game_type}.wav'),
-            'score': self._load_sound('Sound/score.wav'),
-            'result': self._load_sound('Sound/result.wav'),
-            'enter': self._load_sound('Sound/enter.wav'),  # 새로운 사운드 추가
-            'exit': self._load_sound('Sound/exit.wav'),    # 새로운 사운드 추가
+            "init":      self._load_sound(snd("init.mp3")),
+            "waiting":   self._load_sound(snd("wait.wav")),
+            "countdown": self._load_sound(snd("countdown.wav")),
+            "playing":   self._load_sound(snd(f"playing_{self.game_type}.wav")),
+            "score":     self._load_sound(snd("score.wav")),
+            "result":    self._load_sound(snd("result.wav")),
+            "enter":     self._load_sound(snd("enter.wav")),    # 새로운 사운드 추가
+            "exit":      self._load_sound(snd("exit.wav")),     # 새로운 사운드 추가
         }
         
         # SFX 사운드 (예시)
