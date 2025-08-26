@@ -23,7 +23,7 @@ class GIGS:
         self.input_handler = InputHandler(self)
         self.game_handler = GameHandler(self)
         self.score_manager = ScoreManager()
-        self.serial_handler = SerialHandler()
+        self.serial_handler = SerialHandler(self)
         self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, self.game_handler)
 
         self.game_state = GameStateManager(

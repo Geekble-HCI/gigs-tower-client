@@ -4,7 +4,7 @@ import threading
 import time
 
 class SerialHandler:
-    def __init__(self):
+    def __init__(self, gigs_instance=None):
         self.serial_ports = {}  # 여러 시리얼 포트를 저장하는 딕셔너리
         self.excluded_ports = [
             '/dev/cu.debug-console',
@@ -16,6 +16,7 @@ class SerialHandler:
         ]
         self.is_connected = False
         self.setup_thread = None
+        self._gigs = gigs_instance  # GIGS 인스턴스 참조
 
     def setup(self):
         def setup_worker():
@@ -58,7 +59,11 @@ class SerialHandler:
                 try:
                     if port.is_open and port.in_waiting:
                         received_data = port.readline().decode().strip()
-                        print(f"Input from {port_device}: {received_data}")  # 어느 포트에서 입력이 왔는지 확인
+                        print(f"[SERIAL] Input from {port_device}: {received_data}")
+                        
+                        # 'a' 신호를 받으면 RFID 처리
+                        if received_data == 'a':
+                            self._handle_rfid_detected()
                 except:
                     print(f"Error reading from {port_device}")
                     break
@@ -75,6 +80,35 @@ class SerialHandler:
     def start_monitoring(self):
         """이제 개별 포트 모니터링은 setup 과정에서 처리"""
         pass
+
+    def _handle_rfid_detected(self):
+        """RFID 카드 감지 시 호출되는 메서드"""
+        if not self._gigs:
+            print("[SERIAL] No GIGS instance available")
+            return
+            
+        from Module.game_state import GameState
+        current_state = self._gigs.game_state.current_state
+        print(f"[SERIAL] RFID card detected! Current state: {current_state}")
+        
+        # 상태별 처리 (input_handler의 A키와 동일한 로직)
+        if current_state == GameState.INIT:
+            print("[SERIAL] INIT -> WAITING")
+            self._gigs.game_state.show_waiting()
+        elif current_state == GameState.WAITING:
+            print("[SERIAL] WAITING -> COUNTDOWN")
+            if self._gigs.use_tcp:
+                self._gigs.tcp_handler.send_message('-1')
+            self._gigs.game_state.start_countdown()
+        elif current_state == GameState.PLAYING:
+            print("[SERIAL] PLAYING -> RESULT (forcing game end)")
+            # 테스트용 점수로 결과 화면 표시
+            test_score = self._gigs.score_manager.get_total_score()
+            if test_score == 0:
+                test_score = 7176  # 기본 테스트 점수
+            self._gigs.game_state.show_result(test_score)
+        else:
+            print(f"[SERIAL] RFID detected in {current_state} - no action")
 
     def cleanup(self):
         """모든 시리얼 포트 정리"""
