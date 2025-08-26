@@ -6,23 +6,17 @@
 GAME_NAME="Siso"
 GAME_TYPE=5
 DEVICE_ID=5
-PROJECT_DIR="/home/pi/samyang-pop-client/gigs-tower"
-LOG_FILE="/home/pi/gigs-siso.log"
+
+# 스크립트 실행 위치를 기준으로 프로젝트 디렉토리 자동 탐지
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+LOG_FILE="$HOME/gigs-siso.log"
 
 echo "========================================" >> $LOG_FILE
 echo "$(date): Starting GIGS Game $GAME_NAME Client..." >> $LOG_FILE
 
-# 30초 대기 (시스템 완전 부팅 대기)
-echo "$(date): Waiting for system boot completion..." >> $LOG_FILE
-sleep 30
-
-# 네트워크 연결 대기
-echo "$(date): Waiting for network connection..." >> $LOG_FILE
-while ! ping -c 1 8.8.8.8 >/dev/null 2>&1; do
-    echo "$(date): Network not ready, waiting 5 seconds..." >> $LOG_FILE
-    sleep 5
-done
-echo "$(date): Network connected!" >> $LOG_FILE
+# 즉시 실행 (부팅 대기 제거)
+echo "$(date): Starting immediately..." >> $LOG_FILE
 
 # 프로젝트 디렉토리 존재 확인
 if [ ! -d "$PROJECT_DIR" ]; then
@@ -45,7 +39,7 @@ echo "$(date): Virtual environment activated" >> $LOG_FILE
 # 게임 실행 (무한 재시작)
 while true; do
     echo "$(date): Starting $GAME_NAME game client (Type: $GAME_TYPE, Device ID: $DEVICE_ID)..." >> $LOG_FILE
-    python3 pop-client.py --type $GAME_TYPE --device_id $DEVICE_ID >> $LOG_FILE 2>&1
+    python3 pop-client.py --type $GAME_TYPE --device_id $DEVICE_ID 2>&1 | tee -a $LOG_FILE
     echo "$(date): Game client stopped. Restarting in 10 seconds..." >> $LOG_FILE
     sleep 10
 done
