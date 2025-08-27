@@ -11,18 +11,32 @@
 #include <Adafruit_PN532.h>
 
 // SPI 연결 핀 정의 (보드에 맞게 변경하세요)
-#define PN532_SCK   (SCK)
-#define PN532_MOSI  (MOSI)
-#define PN532_MISO  (MISO)
-#define PN532_SS    (SS)
+#define PN532_SCK   13
+#define PN532_MISO  12
+#define PN532_MOSI  11
+#define PN532_SS    10
 
 Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 
 void setup() {
   Serial.begin(115200);
+  while (!Serial);
+  delay(500);
+  Serial.println("Setup Serial");
+
   nfc.begin();
-  // 카드 감지 재시도 횟수 무제한
+
+  Serial.println("Called nfc.begin()");
+  uint32_t versiondata = nfc.getFirmwareVersion();
+  Serial.print("Firmware version: "); Serial.println(versiondata, HEX);
+
+  if (!versiondata) {
+    Serial.println("Didn't find PN532 board");
+    while (1); // 무한 대기
+  }
+
   nfc.setPassiveActivationRetries(0xFF);
+  Serial.println("Setup NFC");
 }
 
 void loop() {
@@ -38,6 +52,6 @@ void loop() {
   if (apduLen > 0) {
     // 최초 APDU 수신 시
     Serial.println('a');
-    delay(5000);
+    delay(500);
   }
 }
