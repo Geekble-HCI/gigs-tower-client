@@ -7,6 +7,10 @@ from typing import Dict, Any, List, Union
 # 1. CommandType Enum 
 class CommandType(str, Enum):
     VOLUME = "volume"
+    MUTE_ON = "mute_on"   # 음소거 켜기
+    MUTE_OFF = "mute_off"   # 음소거 해제
+    MUTE_TOGGLE = "mute_toggle"
+
     GAME_START = "game_start"
     GAME_STOP = "game_stop"
     GAME_RESET = "game_reset"
@@ -35,6 +39,30 @@ class VolumeCommand(CommandInterface):
             return True
         except Exception as e:
             print(f"[Volume] Volume error: {e}")
+            return False
+
+class MuteCommand(CommandInterface):
+    def __init__(self, sound_manager):
+        self.sound_manager = sound_manager
+    
+    def execute(self, cmd: CommandType, value: Any = None, timestamp: str = "", device_id: str = "") -> bool:
+        try:
+            # 예상 응답 - ex) {"cmd":"mute_on", "value":""}
+            if cmd == CommandType.MUTE_ON:
+                self.sound_manager.mute()
+                print("[Mute] Sound muted")
+            elif cmd == CommandType.MUTE_OFF:
+                self.sound_manager.unmute()
+                print("[Mute] Sound unmuted")
+            elif cmd == CommandType.MUTE_TOGGLE:
+                self.sound_manager.toggle_mute()
+                print("[Mute] Sound mute toggled")
+            else:
+                print(f"[Mute] Unknown mute command: {cmd}")
+                return False
+            return True
+        except Exception as e:
+            print(f"[Mute] Mute command error: {e}")
             return False
 
 class PingCommand(CommandInterface):

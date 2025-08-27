@@ -3,7 +3,7 @@ import time
 from Module.game_state import GameStateManager
 from Module.mqtt_scanner import MqttBrokerScanner
 from .mqtt_client import MQTTClient
-from .command_handler import CommandDispatcher, CommandType, GameCommand, PingCommand, VolumeCommand
+from .command_handler import CommandDispatcher, CommandType, GameCommand, MuteCommand, PingCommand, VolumeCommand
 
 
 class MQTTManager:
@@ -75,7 +75,8 @@ class MQTTManager:
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/command")
         # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/ping")
 
-        # self.mqtt_client.add_subscription("broadcast/#")
+        # 브로드캐스트(모든 장치 수신) 토픽 구독 설정 - 볼륨, 게임 초기화
+        self.mqtt_client.add_subscription("device/command/broadcast")
         
         # 메시지 콜백 설정
         self.mqtt_client.set_message_callback(self._handle_mqtt_command)
@@ -84,12 +85,21 @@ class MQTTManager:
         """MQTT 명령 핸들러 설정"""
         if self.mqtt_client and sound_manager:
             self.command_handler = CommandDispatcher()
+            
             self.command_handler.register(CommandType.VOLUME, VolumeCommand(sound_manager))
+
             self.command_handler.register([
                 CommandType.GAME_START,
                 CommandType.GAME_STOP,
                 CommandType.GAME_RESET
                 ], GameCommand(game_handler))
+            
+            self.command_handler.register([
+                CommandType.MUTE_ON,
+                CommandType.MUTE_OFF,
+                CommandType.MUTE_TOGGLE
+                ], MuteCommand(sound_manager))
+            
             # TODO: ping, pong 테스트 
             # self.command_handler.register(CommandType.PING, PingCommand())
     
