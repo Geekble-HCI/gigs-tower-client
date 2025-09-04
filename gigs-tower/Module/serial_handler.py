@@ -64,6 +64,16 @@ class SerialHandler:
                         # 'a' 신호를 받으면 RFID 처리
                         if received_data == 'a':
                             self._handle_rfid_detected()
+
+                        # 이외의 serial 신호를 받으면 점수 처리
+                        elif received_data.isdigit():
+                            from Module.game_state import GameState
+                            current_state = self._gigs.game_state.current_state
+
+                            score_to_add = int(received_data)
+                            if current_state == GameState.PLAYING:
+                                self._gigs.score_manager.add_score(score_to_add)
+                                print(f"[SERIAL] Added {score_to_add} points!")
                 except:
                     print(f"Error reading from {port_device}")
                     break
