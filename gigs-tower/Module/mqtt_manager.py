@@ -45,7 +45,7 @@ class MQTTManager:
             raise RuntimeError("[MQTT] Initial connection failed: Retry attempts exhausted")
 
         #  연결 직후 장치 등록 메시지 반드시 발행
-        self._publish_device_register(game_type)
+        self.publish_device_register()
 
     def _setup_mqtt_broker_ip(self, ):
         """MQTTT 브로커 IP 주소  스캔"""
@@ -100,15 +100,15 @@ class MQTTManager:
                 CommandType.MUTE_TOGGLE
                 ], MuteCommand(sound_manager))
             
-            # TODO: ping, pong 테스트 
-            # self.command_handler.register(CommandType.PING, PingCommand())
+            # Ping은 MQTTClient 인스턴스를 직접 주입해야 publish 가능
+            self.command_handler.register(CommandType.PING, PingCommand(self))
     
-    def _publish_device_register(self, game_type):
+    def publish_device_register(self):
         """연결 직후 장치 등록 메시지 강제 발행"""
         if not self.mqtt_client or not self.mqtt_client.is_connected:
             raise RuntimeError("[MQTT] Device registration failed: Not connected yet")
 
-        game_name = GameStateManager.get_game_name(game_type, True),
+        game_name = GameStateManager.get_game_name(self.game_type, True),
 
         topic = "device/register"
         payload = {

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List, Union, Callable, Optional
 
 #  장치 제어 처리: Command Pattern 적용
 
@@ -66,10 +66,18 @@ class MuteCommand(CommandInterface):
             return False
 
 class PingCommand(CommandInterface):
+    def __init__(self, mqtt_manager=None, health_check: Optional[Callable[[], dict]] = None):
+        self.mqtt_manager = mqtt_manager
+        self.health_check = health_check
+
     def execute(self, cmd: CommandType, value: Any = None, timestamp: str = "", device_id: str = "") -> bool:
-        # TODO: Health Check
-        print(f"[Ping] Ping received from {device_id} at {timestamp}")
-        return True
+        try:
+            self.mqtt_manager.publish_device_register()      
+
+            return True
+        except Exception as e:
+            print(f"[Ping] Ping handling error: {e}")
+            return False
     
 class GameCommand(CommandInterface):
     def __init__(self, game_handler):
