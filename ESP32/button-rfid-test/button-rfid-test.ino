@@ -11,7 +11,7 @@ void loop() {
 
   // 버튼이 눌렸을 때 (HIGH → LOW)
   if (buttonState == LOW && lastButtonState == HIGH) {
-    Serial.println("a");  // 시리얼로 "10" 출력
+    Serial.println("BC2D5005");  // 시리얼로 "10" 출력
     delay(50);             // 디바운스 처리
   }
 

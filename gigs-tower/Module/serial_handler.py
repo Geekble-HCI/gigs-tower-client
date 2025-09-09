@@ -65,6 +65,10 @@ class SerialHandler:
                         if received_data == 'a':
                             self._handle_rfid_detected()
 
+                        # 'a' 신호를 받으면 RFID 처리
+                        elif received_data == "BC2D5005":
+                            self._handle_rfid_detected()
+
                         # 이외의 serial 신호를 받으면 점수 처리
                         elif received_data.isdigit():
                             from Module.game_state import GameState
