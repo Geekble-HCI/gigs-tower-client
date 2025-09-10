@@ -1,15 +1,15 @@
 import pygame
 import sys
-from .game_state import GameState
+from .events import GameEvent, EventType, InputSource
 
 
 class InputHandler:
-    
-    def __init__(self, gigs_instance):
+    def __init__(self, gigs_instance, action_handler):
         self._gigs = gigs_instance
+        self._action = action_handler
         self._key_mappings = {
-            pygame.K_a: self._handle_key_a,
-            pygame.K_b: self._handle_key_b,
+            pygame.K_a: self._handle_key_a,     # A키 → RFID 테스트
+            pygame.K_b: self._handle_key_b,       # B키 → 점수 50 테스트
             pygame.K_ESCAPE: self._handle_escape,
         }
     
@@ -25,8 +25,8 @@ class InputHandler:
                 return self._quit_game()
             elif event.type == pygame.KEYDOWN:
                 return self._handle_keydown(event.key)
-        
         return True  # 게임 계속 실행
+
     
     def _handle_keydown(self, key):
         """
@@ -40,48 +40,22 @@ class InputHandler:
         """
         if key in self._key_mappings:
             return self._key_mappings[key]()
-        
         return True  # 매핑되지 않은 키는 무시하고 게임 계속 실행
     
     def _handle_key_a(self):
-        """A 키 처리 (테스트 모드 전용)"""
-        # 테스트 모드일 때만 키보드 입력 처리
-        if hasattr(self._gigs, 'test_mode') and self._gigs.test_mode:
-            current_state = self._gigs.game_state.current_state
-            print(f"[INPUT TEST] A key pressed - current state: {current_state}")
-            
-            # 상태별 처리
-            if current_state == GameState.INIT:
-                print("[INPUT TEST] INIT -> WAITING")
-                self._gigs.game_state.show_waiting()
-            elif current_state == GameState.WAITING:
-                print("[INPUT TEST] WAITING -> COUNTDOWN")
-                if self._gigs.use_tcp:
-                    self._gigs.tcp_handler.send_message('-1')
-                self._gigs.game_state.start_countdown()
-            elif current_state == GameState.PLAYING:
-                print("[INPUT TEST] PLAYING -> RESULT (forcing game end)")
-                # 테스트용 점수로 결과 화면 표시
-                test_score = self._gigs.score_manager.get_total_score()
-                if test_score == 0:
-                    test_score = 7176  # 기본 테스트 점수
-                self._gigs.game_state.show_result(test_score)
-            else:
-                print(f"[INPUT TEST] A key pressed in {current_state} - no action")
-        
+        """A 키 처리 (테스트 모드 전용) - RFID_Mock"""
+        if getattr(self._gigs, 'test_mode', False):
+            ev = GameEvent(kind=EventType.RFID_DETECTED, source=InputSource.KEYBOARD, raw="TEST_A")
+            self._action.on_rfid_detected(ev)
         return True
     
     def _handle_key_b(self):
         """B 키 처리 (PLAYING 상태에서만 동작)"""
-        # 테스트 모드일 때만 키보드 입력 처리
-        if hasattr(self._gigs, 'test_mode') and self._gigs.test_mode:
-            print(f"[INPUT TEST] B key pressed - current state: {self._gigs.game_state.current_state}")
-            if self._gigs.game_state.current_state == GameState.PLAYING:
-                print("[INPUT TEST] Calling show_score(7176)")
-                self._gigs.game_state.show_score(7176)
-            else:
-                print("[INPUT TEST] B key ignored (not in PLAYING state)")
+        if getattr(self._gigs, 'test_mode', False):
+            ev = GameEvent(kind=EventType.SCORE_RECEIVED, source=InputSource.KEYBOARD, score=50)
+            self._action.on_score_received(ev)
         return True
+
     
     def _handle_escape(self):
         """ESC 키 처리 (게임 종료)"""
