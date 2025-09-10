@@ -21,10 +21,13 @@ class GameStateManager:
         4: "볼볼볼\n영양소",
         5: "바이오데이터\n에어시소",
         6: "슛잇!\n무빙 골대",
+        7: "입장 화면", 
+        8: "퇴장 화면" 
     }
 
     def __init__(self, screen_update_callback, state_change_callback=None, game_type=1, score_wait_time=15, countdown_time=10, mqtt_client=None):
         self.current_state = GameState.INIT  # 초기 상태를 INIT으로 변경
+        self.last_rfid = None  # 마지막으로 스캔된 RFID 저장
         self.countdown = 10
         self.timer_thread = None
         self.screen_update_callback = screen_update_callback
@@ -50,23 +53,43 @@ class GameStateManager:
             return raw_name.replace("\n", " ")
         return raw_name
 
-    def _build_payload(self, state: str, score: int | float | None = None) -> dict:
+    def _build_payload(self, state: str, score: int | float | None = None, rfid: str | None = None) -> dict:
+        if state == GameState.ENTER:
+            progress_state = 'enter'
+        elif state == GameState.EXIT:
+            progress_state = 'end'
+        else:
+            progress_state = 'inprogress'
+
         payload = {
             "device_id": self.device_id,
             "game_type": self.sound_manager.game_type,
             "game_name": GameStateManager.get_game_name(self.sound_manager.game_type, True),
             "state": state,
+            "progress_state": progress_state,
+            "rfid": rfid
         }
         if score is not None:
             payload["score"] = score
         return payload
         
-    def _publish_state(self, state, score=None):
+    def _publish_state(self, state, score=None, rfid=None):
         if not self.mqtt_client:
             return
+        # 인자로 rfid가 주어지지 않으면, 저장된 last_rfid 사용
+        rfid_to_publish = rfid if rfid is not None else self.last_rfid
         topic = f"device/{self.device_ip}/state"
-        payload = self._build_payload(state, score)
-        self.mqtt_client.publish(topic, json.dumps(payload), qos=1, retain=False)
+        payload = self._build_payload(state, score, rfid=rfid_to_publish)
+        self.mqtt_client.publish(topic, json.dumps(payload, ensure_ascii=False), qos=1, retain=False)
+
+    def publish_rfid_detected(self, rfid: str):
+        """Stores the detected RFID and publishes an MQTT message."""
+        self.last_rfid = rfid
+        self._publish_state(self.current_state, rfid=rfid)
+
+    def clear_last_rfid(self):
+        """Clears the last stored RFID."""
+        self.last_rfid = None
 
     def start_countdown(self):
         self.current_state = GameState.COUNTDOWN
@@ -143,8 +166,9 @@ class GameStateManager:
         self.result_thread.start()
 
     def show_waiting(self):
-        """게임 상태를 대기 상태로 초기화"""
+        """게임 상태를 대기 상태로 초기화하고, 마지막 RFID 정보를 리셋."""
         self.current_state = GameState.WAITING
+        self.last_rfid = None  # 새 세션을 위해 마지막 RFID 리셋
         self._publish_state(self.current_state)
         self.countdown = self.countdown_time  # Use the configured countdown time
         if self.timer_thread and self.timer_thread.is_alive():

@@ -67,11 +67,11 @@ class MQTTManager:
         self.mqtt_client = MQTTClient(mqtt_broker_ip, 1883, device_id)
         
         # IP 주소 기반 토픽 구독 설정
-        self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/state")
+        # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/state") # 상태 토픽은 발행만 하고 구독하지 않음
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/command")
 
         # device ID 기반 토픽 구독 설정
-        self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/state")
+        # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/state") # 상태 토픽은 발행만 하고 구독하지 않음
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/command")
         # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/ping")
 
@@ -108,7 +108,7 @@ class MQTTManager:
         if not self.mqtt_client or not self.mqtt_client.is_connected:
             raise RuntimeError("[MQTT] Device registration failed: Not connected yet")
 
-        game_name = GameStateManager.get_game_name(self.game_type, True),
+        game_name = GameStateManager.get_game_name(self.game_type, True)
 
         topic = "device/register"
         payload = {

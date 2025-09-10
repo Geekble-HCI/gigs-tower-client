@@ -41,7 +41,7 @@ class SoundManager:
 
         self._initialized = True
         
-        self.game_type = min(max(1, game_type), 6)  # 1~6 사이의 값으로 제한
+        self.game_type = min(max(1, game_type), 8)  # 1~8 사이의 값으로 제한
         self.muted: bool = False
         self.volume: float = 1.0
 

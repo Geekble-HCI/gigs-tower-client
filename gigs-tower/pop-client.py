@@ -4,7 +4,7 @@ from gigs import GIGS
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Samyang Pop Game Client')
     parser.add_argument('--tcp', action='store_true', help='Enable TCP connection')
-    parser.add_argument('--type', type=int, choices=[1,2,3,4,5,6], default=1,
+    parser.add_argument('--type', type=int, choices=[1,2,3,4,5,6,7,8], default=1,
                       help='''Game type:
     1: Healthy Burger
     2: Sleep Disturbance
@@ -24,9 +24,16 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
+
+    game_type = args.type
+    if args.enter:
+        game_type = 7
+    elif args.exit:
+        game_type = 8
+
     game = GIGS(
         use_tcp=args.tcp, 
-        game_type=args.type,
+        game_type=game_type,
         show_enter=args.enter,
         show_exit=args.exit,
         score_wait_time=args.score_wait_time,

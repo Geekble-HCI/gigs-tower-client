@@ -13,8 +13,13 @@ class GameActionHandler:
     # RFID 공통 처리
     def on_rfid_detected(self, ev: GameEvent):
         current = self.gsm.current_state
-        print(f"[Action] RFID detected from {ev.source}, state={current}")
+        rfid = ev.raw
+        print(f"[Action] RFID '{rfid}' detected from {ev.source}, state={current}")
 
+        # 1. Publish RFID detection event immediately. This also stores the RFID.
+        self.gsm.publish_rfid_detected(rfid)
+
+        # 2. Perform original state transition logic.
         if current == GameState.INIT:
             print("[Action] INIT -> WAITING")
             self.gsm.show_waiting()
@@ -32,8 +37,20 @@ class GameActionHandler:
                 score = 7176
             self.gsm.show_result(score)
 
+        elif current == GameState.ENTER:
+            self.gsm.sound_manager.play_bgm('enter_result')
+            # ENTER/EXIT are one-off events, so clear the RFID immediately after use.
+            self.gsm.clear_last_rfid()
+
+        elif current == GameState.EXIT:
+            self.gsm.sound_manager.play_bgm('exit_result')
+            # ENTER/EXIT are one-off events, so clear the RFID immediately after use.
+            self.gsm.clear_last_rfid()
+
         else:
-            print(f"[Action] RFID ignored in {current}")
+            # This now includes SCORE and RESULT states, where RFID was previously ignored.
+            # Now it's published, which is correct according to the new request.
+            print(f"[Action] RFID event published for state {current}. No state transition.")
 
     # 점수 수신
     def on_score_received(self, ev: GameEvent):

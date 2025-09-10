@@ -84,7 +84,9 @@ class GIGS:
             self.game_state.show_exit()
         else:
             self.game_state.show_init()
-            self.setup_communications(use_tcp)
+        
+        # ENTER/EXIT/GAME 모드 모두 시리얼/TCP 통신 설정 필요
+        self.setup_communications(use_tcp)
 
     # ============================================================================
     # 통신 관련 메서드들
