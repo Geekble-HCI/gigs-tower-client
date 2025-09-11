@@ -8,8 +8,8 @@ class InputHandler:
         self._gigs = gigs_instance
         self._action = action_handler
         self._key_mappings = {
-            pygame.K_a: self._handle_key_a,     # A키 → RFID 테스트
-            pygame.K_b: self._handle_key_b,       # B키 → 점수 50 테스트
+            pygame.K_a: self._handle_key_a,     # A키 → RFID Mock
+            pygame.K_b: self._handle_key_b,     # B키 → 점수 10 Mock
             pygame.K_ESCAPE: self._handle_escape,
         }
     
@@ -43,20 +43,32 @@ class InputHandler:
         return True  # 매핑되지 않은 키는 무시하고 게임 계속 실행
     
     def _handle_key_a(self):
-        """A 키 처리 (테스트 모드 전용) - RFID_Mock"""
+        """A 키 처리 → RFID 이벤트"""
         if getattr(self._gigs, 'test_mode', False):
-            ev = GameEvent(kind=EventType.RFID_DETECTED, source=InputSource.KEYBOARD, raw="TEST_A")
+            mock_rfid = "QWER1234"  # 8자리 영숫자
+            print(f"[INPUT TEST] A key pressed -> mock RFID: {mock_rfid}")
+            ev = GameEvent(
+                kind=EventType.RFID_DETECTED,
+                source=InputSource.KEYBOARD,
+                raw=mock_rfid
+            )
             self._action.on_rfid_detected(ev)
         return True
-    
+
     def _handle_key_b(self):
-        """B 키 처리 (PLAYING 상태에서만 동작)"""
+        """B 키 처리 → 점수 이벤트 (10점)"""
         if getattr(self._gigs, 'test_mode', False):
-            ev = GameEvent(kind=EventType.SCORE_RECEIVED, source=InputSource.KEYBOARD, score=50)
+            score_val = 10
+            print(f"[INPUT TEST] B key pressed -> mock Score: {score_val}")
+            ev = GameEvent(
+                kind=EventType.SCORE_RECEIVED,
+                source=InputSource.KEYBOARD,
+                raw=str(score_val),
+                score=score_val
+            )
             self._action.on_score_received(ev)
         return True
-
-    
+  
     def _handle_escape(self):
         """ESC 키 처리 (게임 종료)"""
         if hasattr(self._gigs, 'test_mode') and self._gigs.test_mode:

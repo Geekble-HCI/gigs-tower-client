@@ -22,6 +22,11 @@ class GIGS:
                  test_mode=False):
         pygame.init()
 
+        # 테스트 모드이면 countdown_time을 1초로
+        self.test_mode = test_mode
+        if self.test_mode:
+            countdown_time = 1
+
         # 기본 컴포넌트
         self.sound_manager = SoundManager(game_type)
         self.screen_manager = ScreenManager()
@@ -74,9 +79,10 @@ class GIGS:
     def init_mode(self, show_enter, show_exit, use_tcp, test_mode):
         if test_mode:
             print("[TEST MODE] Keyboard input enabled:")
-            print("  - A: Start countdown")
-            print("  - B: Show score (when playing)")
+            print("  - A: Mock RFID detected (8-char UID : QWER1234)")
+            print("  - B: Mock Score +10")
             print("  - ESC: Exit")
+
 
         if show_enter:
             self.game_state.show_enter()
