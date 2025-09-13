@@ -57,7 +57,7 @@ class GameStateManager:
         if state == GameState.ENTER:
             progress_state = 'enter'
         elif state == GameState.EXIT:
-            progress_state = 'end'
+            progress_state = 'exit'
         else:
             progress_state = 'inprogress'
 
