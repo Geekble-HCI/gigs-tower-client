@@ -37,7 +37,7 @@ REM ==========================
 :loop
 echo %date% %time% : Starting Enter screen (Device ID: %DEVICE_ID%) >> "%LOG_FILE%"
 
-python pop-client.py --type %GAME_TYPE% --device_id %DEVICE_ID% >> "%LOG_FILE%" 2>&1
+python pop-client.py --type %GAME_TYPE% --device_id %DEVICE_ID% >> LOG_FILE% 2>&1
 
 echo %date% %time% : Enter screen stopped. Restarting in 10 seconds... >> "%LOG_FILE%"
 timeout /t 10
