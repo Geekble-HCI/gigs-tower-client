@@ -67,11 +67,9 @@ class MQTTManager:
         self.mqtt_client = MQTTClient(mqtt_broker_ip, 1883, device_id)
         
         # IP 주소 기반 토픽 구독 설정
-        # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/state") # 상태 토픽은 발행만 하고 구독하지 않음
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/command")
 
         # device ID 기반 토픽 구독 설정
-        # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/state") # 상태 토픽은 발행만 하고 구독하지 않음
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/command")
         # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/ping")
 

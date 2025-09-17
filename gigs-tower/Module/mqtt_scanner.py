@@ -1,3 +1,4 @@
+import paho.mqtt.client as mqtt
 import socket
 import time
 import os
@@ -12,15 +13,58 @@ class MqttBrokerScanner:
         self.local_ip = LocalIpResolver.resolve_ip()
         self.base_ip = ".".join(self.local_ip.split(".")[:3]) + "."
         self.cache_file = "last_broker_ip.txt"
-
+        print(f"[SCANNER] local_ip={self.local_ip}, base_ip={self.base_ip}")
 
     def _is_broker_alive(self, ip):
+        """
+        paho-mqtt로 실제 Connect를 시도해 CONNACK 수신 시 브로커로 인정.
+        성공하면 ip 반환, 실패하면 None.
+        """
+        result = {"ok": False}
+        
+        def _on_connect(client, userdata, flags, rc, properties=None):
+            # rc == 0 이면 연결 성공 (MQTT v3.1.1 기준)
+            if rc == 0:
+                result["ok"] = True
+            # 스캔 용도이므로 바로 끊어 응답만 받고 종료
+            try:
+                client.disconnect()
+            except Exception:
+                pass
+
+        client_id = "scan-" + os.urandom(3).hex()     # 짧은 임시 clientId
+
+        # protocol은 보수적으로 v3.1.1(=MQTTv311) 지정
+        client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv311)
+        client.on_connect = _on_connect
+
         try:
-            sock = socket.create_connection((ip, self.port), timeout=self.timeout)
-            sock.close()
-            return ip
-        except:
-            return None
+            # 비동기 연결 + 네트워크 루프 가동
+            client.connect_async(ip, self.port, keepalive=10)
+            client.loop_start()
+
+            # timeout 내에서 on_connect가 불릴 때까지 기다림
+            t0 = time.time()
+            while time.time() - t0 < self.timeout:
+                if result["ok"]:
+                    break
+                time.sleep(0.01)
+
+        except Exception:
+            result["ok"] = False
+        finally:
+            # 루프 정리
+            try:
+                client.loop_stop()
+            except Exception:
+                pass
+            try:
+                client.disconnect()
+            except Exception:
+                pass
+
+        return ip if result["ok"] else None
+
 
     def _load_cached_ip(self):
         if os.path.exists(self.cache_file):
