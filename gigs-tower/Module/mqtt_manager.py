@@ -49,7 +49,7 @@ class MQTTManager:
 
     def _setup_mqtt_broker_ip(self, ):
         """MQTTT 브로커 IP 주소  스캔"""
-        scanner = MqttBrokerScanner(timeout=0.3, max_threads=50)
+        scanner = MqttBrokerScanner(timeout=0.6, max_threads=50, preferred_ifaces=["Wi-Fi","wlan0","en0"])
         start_time = time.time()
 
         self.mqtt_broker_ip =scanner.scan()
@@ -71,7 +71,6 @@ class MQTTManager:
 
         # device ID 기반 토픽 구독 설정
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/command")
-        # self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/ping")
 
         # 브로드캐스트(모든 장치 수신) 토픽 구독 설정 - 볼륨, 게임 초기화
         self.mqtt_client.add_subscription("device/command/broadcast")
