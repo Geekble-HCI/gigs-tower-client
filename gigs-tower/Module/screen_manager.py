@@ -6,10 +6,10 @@ from paths import fnt, img
 
 class ScreenManager:
     # LCD 마진 설정
-    MARGIN_LEFT = 68    # 좌측 마진
-    MARGIN_TOP = 248     # 상단 마진
-    MARGIN_RIGHT = 48   # 우측 마진
-    MARGIN_BOTTOM = 38  # 하단 마진
+    MARGIN_LEFT = 0    # 좌측 마진
+    MARGIN_TOP = 0     # 상단 마진
+    MARGIN_RIGHT = 0   # 우측 마진
+    MARGIN_BOTTOM = 0  # 하단 마진
 
     def __init__(self):
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
