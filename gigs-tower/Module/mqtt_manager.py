@@ -65,18 +65,17 @@ class MQTTManager:
     def _setup_mqtt_client(self, mqtt_broker_ip, device_id):
         """MQTT 클라이언트 설정 및 연결"""
         self.mqtt_client = MQTTClient(mqtt_broker_ip, 1883, device_id)
-        
-        # IP 주소 기반 토픽 구독 설정
+
+        # 기존 구독 토픽들
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/command")
-
-        # device ID 기반 토픽 구독 설정
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/command")
-
-        # 브로드캐스트(모든 장치 수신) 토픽 구독 설정 - 볼륨, 게임 초기화
         self.mqtt_client.add_subscription("device/command/broadcast")
-        
+
+        # 새로운 플레이어 피드백 토픽 추가
+        self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/player_feedback")
+
         # 메시지 콜백 설정
-        self.mqtt_client.set_message_callback(self._handle_mqtt_command)
+        self.mqtt_client.set_message_callback(self._handle_mqtt_message)
     
     def _setup_command_handler(self, sound_manager, game_handler):
         """MQTT 명령 핸들러 설정"""
@@ -124,13 +123,36 @@ class MQTTManager:
         )
         print(f"[MQTT] Device register published → {topic}: {payload}")
 
+    def _handle_mqtt_message(self, topic, payload):
+        """MQTT 메시지 통합 처리"""
+        try:
+            if "player_feedback" in topic:
+                # 플레이어 피드백 메시지 처리
+                self._handle_player_feedback(payload)
+            elif "command" in topic:
+                # 기존 명령 메시지 처리
+                self._handle_mqtt_command(topic, payload)
+            else:
+                print(f"[MQTT] Unknown topic: {topic}")
+        except Exception as e:
+            print(f"[MQTT] Message processing error: {e}")
+
+    def _handle_player_feedback(self, payload):
+        """서버로부터의 플레이어 피드백 처리"""
+        try:
+            # GameStateManager에 피드백 전달
+            if hasattr(self, 'game_state_manager'):
+                self.game_state_manager.handle_player_feedback(payload)
+            print(f"[MQTT] Player feedback processed: {payload.get('nickname', 'Unknown')}")
+        except Exception as e:
+            print(f"[MQTT] Player feedback error: {e}")
+
     def _handle_mqtt_command(self, topic, payload):
         """장치 명령 메시지 처리"""
         try:
             if not self.command_handler:
                 print("[MQTT] No command handler available")
                 return
-            
             data = payload.get("data") or {}
             command = data.get("command")
             value = data.get("value")
@@ -153,6 +175,10 @@ class MQTTManager:
         """MQTT 클라이언트 인스턴스 반환 (GameStateManager에서 사용)"""
         return self.mqtt_client
     
+    def set_game_state_manager(self, game_state_manager):
+        """GameStateManager 참조 설정"""
+        self.game_state_manager = game_state_manager
+
     def disconnect(self):
         """MQTT 연결 해제"""
         if self.mqtt_client:

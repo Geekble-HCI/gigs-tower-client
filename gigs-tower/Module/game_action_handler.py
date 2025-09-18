@@ -9,18 +9,53 @@ class GameActionHandler:
     def __init__(self, gsm: GameStateManager, gigs_instance=None):
         self.gsm = gsm
         self._gigs = gigs_instance  # TCP/점수 등 부수효과에서 사용
-
-    # RFID 공통 처리
     def on_rfid_detected(self, ev: GameEvent):
         current = self.gsm.current_state
         rfid = ev.raw
         print(f"[Action] RFID '{rfid}' detected from {ev.source}, state={current}")
 
-        # 1. Publish RFID detection event immediately. This also stores the RFID.
+        # TODO: 공통 로직 메서드 추상화 
+        # 게임 중인 경우 태그 시 예외처리
+        if current in [GameState.PLAYING, GameState.COUNTDOWN]:
+            self.gsm.screen_update_callback(f"게임이 진행 중 입니다.\n(태그 불가)")
+            import threading
+            threading.Timer(1, self.gsm._restore_state_display).start()
+            print(f"[Action] Ignored RFID '{rfid}' tag When Game is Playing")
+            return
+
+        # 중복 태그 방지
+        if rfid == self.gsm.last_rfid and current not in [GameState.PLAYING, GameState.SCORE]:
+            self.gsm.screen_update_callback(f"이미 처리가 되었습니다.\n(RFID: {rfid})")
+            self.gsm.sound_manager.play_sfx('get') # TODO: 사운드 변경
+            import threading
+            threading.Timer(1.5, self.gsm._restore_state_display).start()
+            print(f"[Action] Duplicate RFID '{rfid}' ignored in state {current}")
+            return
+
+
+        # MQTT 상태 전송 (서버가 플레이어 관리 및 last_rfid 업데이트)
         self.gsm.publish_rfid_detected(rfid)
 
-        # 2. Perform original state transition logic.
-        if current == GameState.INIT:
+        if current == GameState.ENTER:
+            self.gsm.sound_manager.play_sfx('get') # TODO: 사운드 변경
+            mock_nickname = f"Player_{rfid[-4:]}" # TODO: 서버 연동 - 닉네임 받아오기
+            temp_message = f"환영합니다! {mock_nickname}님\n(RFID: {rfid})"
+            self.gsm.screen_update_callback(temp_message)
+            import threading
+            threading.Timer(1.5, self.gsm._restore_state_display).start()
+            print(f"[Action] Player Eneter:  RFID '{rfid}'")
+            return
+
+        if current == GameState.EXIT:
+            self.gsm.sound_manager.play_sfx('get') # TODO: 사운드 변경
+            temp_message = f"퇴장 처리 되었습니다.\n(RFID: {self.gsm.last_rfid})"
+            self.gsm.screen_update_callback(temp_message)
+            import threading
+            threading.Timer(1.5, self.gsm._restore_state_display).start()
+            print(f"[Action] Player EXIT:  RFID '{rfid}'")
+            return
+
+        elif current == GameState.INIT:
             print("[Action] INIT -> WAITING")
             self.gsm.show_waiting()
 
@@ -37,20 +72,8 @@ class GameActionHandler:
                 score = 7176
             self.gsm.show_result(score)
 
-        elif current == GameState.ENTER:
-            self.gsm.sound_manager.play_bgm('enter_result')
-            # ENTER/EXIT are one-off events, so clear the RFID immediately after use.
-            self.gsm.clear_last_rfid()
-
-        elif current == GameState.EXIT:
-            self.gsm.sound_manager.play_bgm('exit_result')
-            # ENTER/EXIT are one-off events, so clear the RFID immediately after use.
-            self.gsm.clear_last_rfid()
-
         else:
-            # This now includes SCORE and RESULT states, where RFID was previously ignored.
-            # Now it's published, which is correct according to the new request.
-            print(f"[Action] RFID event published for state {current}. No state transition.")
+            print(f"[Action] RFID event sent to server for state {current}")
 
     # 점수 수신
     def on_score_received(self, ev: GameEvent):

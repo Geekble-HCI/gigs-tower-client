@@ -51,14 +51,17 @@ class GIGS:
         # Serial은 on_event 콜백으로 라우팅
         self.serial_handler = SerialHandler(self, on_event=lambda ev: self._route_serial_event(action, ev))
 
-        # MQTT 매니저 생성(기존처럼 game_handler 넘겨도 OK)
+        # MQTT 매니저 생성
         self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, self.game_handler)
 
-        # MQTT 클라이언트를 GameStateManager에 “사후 주입”
+        # MQTT 클라이언트를 GameStateManager에 주입
         client = self.mqtt_manager.get_client()
         self.game_state.mqtt_client = client
         self.game_state.device_id = client.device_id if client else "unknown_client"
         self.game_state.device_ip = client.ip_address if client else "unknown_ip"
+
+        # MQTTManager에 GameStateManager 참조 설정 (피드백 처리용)
+        self.mqtt_manager.set_game_state_manager(self.game_state)
 
         # 모드 플래그
         self.test_mode = test_mode

@@ -1,6 +1,7 @@
 import json
 import threading
 import time
+from datetime import datetime
 from .sound_manager import SoundManager
 
 class GameState:
@@ -41,6 +42,7 @@ class GameStateManager:
         self.mqtt_client = mqtt_client # MQTT 클라이언트 저장
         self.device_id = mqtt_client.device_id if mqtt_client else "unknown_client"
         self.device_ip = mqtt_client.ip_address if mqtt_client else "unknown_ip"
+        self.current_player_info = None  # 서버로부터 받은 플레이어 정보
 
     @staticmethod
     def get_game_name(game_type: int, remove_newline: bool = False) -> str:
@@ -53,13 +55,18 @@ class GameStateManager:
             return raw_name.replace("\n", " ")
         return raw_name
 
-    def _build_payload(self, state: str, score: int | float | None = None, rfid: str | None = None) -> dict:
+    def _get_progress_state(self, state: str) -> str:
+        """현재 상태에 따른 progress_state 결정"""
         if state == GameState.ENTER:
-            progress_state = 'enter'
+            return 'enter'
         elif state == GameState.EXIT:
-            progress_state = 'exit'
+            return 'exit'
         else:
-            progress_state = 'inprogress'
+            return 'inprogress'
+
+    def _build_payload(self, state: str, score: int | float | None = None, rfid: str | None = None) -> dict:
+        """서버 전송용 페이로드 생성 (단순화)"""
+        progress_state = self._get_progress_state(state)
 
         payload = {
             "device_id": self.device_id,
@@ -67,8 +74,10 @@ class GameStateManager:
             "game_name": GameStateManager.get_game_name(self.sound_manager.game_type, True),
             "state": state,
             "progress_state": progress_state,
-            "rfid": rfid
+            "rfid": rfid,
+            "timestamp": datetime.now().isoformat()
         }
+
         if score is not None:
             payload["score"] = score
         return payload
@@ -200,3 +209,83 @@ class GameStateManager:
         self._publish_state(self.current_state)
         self.sound_manager.play_bgm_loop('exit')  # exit.wav 또는 exit.mp3 필요
         self.screen_update_callback("수고하셨습니다!")
+
+    def handle_player_feedback(self, feedback_data: dict):
+        """서버로부터 받은 플레이어 피드백 처리"""
+        self.current_player_info = feedback_data
+
+        # 클라이언트에서 UI 메시지 생성
+        ui_message = self._generate_ui_message(feedback_data)
+        # 콜백에 플레이어 정보(feedback_data)를 함께 전달
+        self.screen_update_callback(ui_message, feedback_data)
+
+        # 클라이언트에서 사운드 효과 결정
+        sound_effect = self._determine_sound_effect(feedback_data)
+        if sound_effect:
+            self.sound_manager.play_sfx(sound_effect)
+
+        # 표시 시간 결정
+        duration = self._get_display_duration(feedback_data)
+        import threading
+        threading.Timer(duration, self._restore_state_display).start()
+
+    def _generate_ui_message(self, feedback_data: dict) -> str:
+        """플레이어 정보를 기반으로 UI 메시지 생성"""
+        progress_state = feedback_data.get('progress_state', '')
+        nickname = feedback_data.get('nickname')
+        is_new_player = feedback_data.get('is_new_player', False)
+        game_state = feedback_data.get('game_state')
+
+        if progress_state == 'enter':
+            if nickname:
+                return f"환영합니다!\n{nickname}님" if is_new_player else f"다시 오셨군요!\n{nickname}님"
+            else:
+                return "환영합니다!\n신규 플레이어님" if is_new_player else "환영합니다!"
+
+        elif progress_state == 'inprogress':
+            if game_state == 'RESULT':
+                return f"{nickname}님\n게임 종료!" if nickname else "게임 종료!"
+            else:
+                return f"{nickname}님\n게임 진행 중" if nickname else "게임 진행 중"
+
+        elif progress_state == 'exit':
+            return f"안녕히 가세요!\n{nickname}님" if nickname else "안녕히 가세요!"
+
+        else:
+            return 'RFID 인식됨'
+
+    def _determine_sound_effect(self, feedback_data: dict) -> str:
+        """플레이어 정보를 기반으로 사운드 효과 결정"""
+        progress_state = feedback_data.get('progress_state')
+        game_state = feedback_data.get('game_state')
+
+        if progress_state == 'enter':
+            return 'player_enter'
+        elif progress_state == 'inprogress':
+            return 'game_progress' if game_state == 'RESULT' else 'tag_success'
+        elif progress_state == 'exit':
+            return 'player_exit'
+        else:
+            return 'tag_success'
+
+    def _get_display_duration(self, feedback_data: dict) -> float:
+        """플레이어 정보를 기반으로 표시 시간 결정"""
+        progress_state = feedback_data.get('progress_state', '')
+
+        if progress_state in ['enter', 'exit']:
+            return 3.0
+        else:
+            return 2.0
+
+    def _restore_state_display(self):
+        """원래 상태 표시로 복구"""
+        # 현재 상태에 맞는 기본 메시지로 복구
+        if self.current_state == GameState.WAITING:
+            game_title = GameStateManager.get_game_name(self.sound_manager.game_type)
+            self.screen_update_callback(f"{game_title}\n\n태그를 하면\n게임이 시작됩니다!")
+        elif self.current_state == GameState.PLAYING:
+            self.screen_update_callback("게임 진행 중...")
+        elif self.current_state == GameState.ENTER:
+            self.screen_update_callback("게임을 시작해주세요!")
+        elif self.current_state == GameState.EXIT:
+            self.screen_update_callback("수고하셨습니다!")
