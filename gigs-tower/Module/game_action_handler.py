@@ -14,13 +14,12 @@ class GameActionHandler:
         rfid = ev.raw
         print(f"[Action] RFID '{rfid}' detected from {ev.source}, state={current}")
 
-        MASTER_CARD_UID = "7C9E4705"
-        if rfid == MASTER_CARD_UID and current in [GameState.PLAYING, GameState.COUNTDOWN]:
+        # 마스터 카드 태그 시
+        MASTER_CARDS_UID = {"7C9E4705", "QWER1234", "87654321"}  # 추가 UID 가능
+        if rfid in MASTER_CARDS_UID and current in [GameState.PLAYING, GameState.COUNTDOWN]:
+            # 점수는 0점으로 처리하여 종료처리
+            self.gsm.show_result(0)
             print(f"[Action] MASTER CARD '{rfid}' detected during game! Forcing game end.")
-            score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
-            if score == 0:
-                score = 7176  # 디폴트 점수
-            self.gsm.show_result(score)
             return  # 이후 로직 무시
 
         # TODO: 공통 로직 메서드 추상화 
