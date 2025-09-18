@@ -22,6 +22,9 @@ class SerialHandler:
         self._gigs = gigs_instance  # GIGS 인스턴스 참조
         self._on_event = on_event  # 외부 이벤트 전달
 
+        # 객체 생성 시 자동으로 포트 연결 시도
+        self.setup()
+
     def setup(self):
         def setup_worker():
             while not self.is_connected:
@@ -45,6 +48,11 @@ class SerialHandler:
                     
                     if connected_count > 0:
                         self.is_connected = True
+
+                        # 연결된 모든 포트를 즉시 리셋 & 재연결
+                        for dev in list(self.serial_ports.keys()):
+                            self.reset_and_reconnect_port(dev)
+
                         return
                     
                     print("No suitable serial ports found, retrying...")
@@ -106,3 +114,36 @@ class SerialHandler:
         for port in self.serial_ports.values():
             if port and port.is_open:
                 port.close()
+
+    def reset_and_reconnect_port(self, device: str):
+        """특정 포트를 DTR 신호로 리셋 후 재연결"""
+        port = self.serial_ports.get(device)
+        if not port:
+            print(f"No active port found for {device}")
+            return False
+
+        try:
+            if port.is_open:
+                print(f"Resetting {device}...")
+                # 아두이노 리셋 (DTR 신호 토글)
+                port.setDTR(False)
+                time.sleep(0.5)
+                port.setDTR(True)
+                port.close()
+                time.sleep(1)  # 아두이노 재부팅 대기
+
+                # 재연결
+                new_port = serial.Serial(device, 115200, timeout=1)
+                self.serial_ports[device] = new_port
+                print(f"Reconnected to {device}")
+                # 다시 모니터링 시작
+                self.start_port_monitoring(device, new_port)
+                return True
+        except Exception as e:
+            print(f"Failed to reset {device}: {e}")
+            return False
+
+    def reset_and_reconnect_ports(self):
+        """등록된 모든 포트 순회하며 reset/reconnect"""
+        for device in list(self.serial_ports.keys()):
+            self.reset_and_reconnect_port(device)

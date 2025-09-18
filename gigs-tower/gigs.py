@@ -51,17 +51,14 @@ class GIGS:
         # Serial은 on_event 콜백으로 라우팅
         self.serial_handler = SerialHandler(self, on_event=lambda ev: self._route_serial_event(action, ev))
 
-        # MQTT 매니저 생성
+        # MQTT 매니저 생성(기존처럼 game_handler 넘겨도 OK)
         self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, self.game_handler)
 
-        # MQTT 클라이언트를 GameStateManager에 주입
+        # MQTT 클라이언트를 GameStateManager에 “사후 주입”
         client = self.mqtt_manager.get_client()
         self.game_state.mqtt_client = client
         self.game_state.device_id = client.device_id if client else "unknown_client"
         self.game_state.device_ip = client.ip_address if client else "unknown_ip"
-
-        # MQTTManager에 GameStateManager 참조 설정 (피드백 처리용)
-        self.mqtt_manager.set_game_state_manager(self.game_state)
 
         # 모드 플래그
         self.test_mode = test_mode
@@ -111,7 +108,33 @@ class GIGS:
         self.serial_handler.setup()
         self.serial_handler.start_monitoring()
 
+    # def wait_for_connections(self):
+    #     while True:
+    #         running = self.input_handler.process_events()
+    #         if not running:
+    #             return
+
+    #         self.screen_manager.process_message_queue()
+
+    #         if self.game_state.current_state in [GameState.ENTER, GameState.EXIT]:
+    #             pygame.time.wait(100)
+    #             continue
+
+    #         if self.serial_handler.is_ready():
+    #             if not self.use_tcp or (self.use_tcp and self.tcp_handler.is_ready()):
+    #                 break
+
+    #         pygame.time.wait(100)
+
+    #     if self.game_state.current_state not in [GameState.ENTER, GameState.EXIT]:
+    #         self.game_state.show_waiting()
+
     def wait_for_connections(self):
+        waiting_shown = False
+
+        # 시리얼 재연결 즉시 시작
+        self.serial_handler.reset_and_reconnect_ports()
+
         while True:
             running = self.input_handler.process_events()
             if not running:
@@ -119,19 +142,24 @@ class GIGS:
 
             self.screen_manager.process_message_queue()
 
+            # ENTER/EXIT 상태일 때는 루프 유지
             if self.game_state.current_state in [GameState.ENTER, GameState.EXIT]:
                 pygame.time.wait(100)
                 continue
 
-            if self.serial_handler.is_ready():
-                if not self.use_tcp or (self.use_tcp and self.tcp_handler.is_ready()):
-                    break
+            # 시리얼/TCP 준비 여부 확인
+            serial_ready = self.serial_handler.is_ready()  # reset/reconnect 완료 시 True
+            tcp_ready = (not self.use_tcp) or (self.use_tcp and self.tcp_handler.is_ready())
+
+            if serial_ready and tcp_ready:
+                if not waiting_shown:
+                    self.game_state.show_waiting()  # 여기서만 호출
+                    waiting_shown = True
+                break
 
             pygame.time.wait(100)
 
-        if self.game_state.current_state not in [GameState.ENTER, GameState.EXIT]:
-            self.game_state.show_waiting()
-
+    
     def OnReceivedTCPMessage(self, message):
         try:
             score = float(message)
