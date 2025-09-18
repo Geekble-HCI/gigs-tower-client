@@ -14,6 +14,15 @@ class GameActionHandler:
         rfid = ev.raw
         print(f"[Action] RFID '{rfid}' detected from {ev.source}, state={current}")
 
+        MASTER_CARD_UID = "7C9E4705"
+        if rfid == MASTER_CARD_UID and current in [GameState.PLAYING, GameState.COUNTDOWN]:
+            print(f"[Action] MASTER CARD '{rfid}' detected during game! Forcing game end.")
+            score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
+            if score == 0:
+                score = 7176  # 디폴트 점수
+            self.gsm.show_result(score)
+            return  # 이후 로직 무시
+
         # TODO: 공통 로직 메서드 추상화 
         # 게임 중인 경우 태그 시 예외처리
         if current in [GameState.PLAYING, GameState.COUNTDOWN]:
