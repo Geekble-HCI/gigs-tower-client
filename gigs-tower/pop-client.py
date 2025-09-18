@@ -17,7 +17,7 @@ def parse_arguments():
     parser.add_argument('--score-wait-time', type=int, default=15, help='Wait time for the score screen (default: 15 seconds)')
     parser.add_argument('--countdown-time', type=int, default=10, help='Countdown time for the game start (default: 10 seconds)')
     parser.add_argument('--mqtt-broker', type=str, default=None, help='MQTT broker address')
-    parser.add_argument('--device_id', type=str, default='01', help='MQTT client ID')
+    parser.add_argument('--device_id', type=str, default=None, help='MQTT client ID (optional, auto-generated from type if not specified)')
     parser.add_argument('--test', action='store_true', help='Enable input handler test mode')
     return parser.parse_args()
 
@@ -31,15 +31,21 @@ if __name__ == "__main__":
     elif args.exit:
         game_type = 8
 
+    # device_id를 type 값으로 자동 설정 (명시적으로 지정되지 않은 경우)
+    device_id = args.device_id
+    if device_id is None:
+        device_id = str(args.type)
+        print(f"[INFO] Device ID auto-generated from type: {device_id}")
+
     game = GIGS(
-        use_tcp=args.tcp, 
+        use_tcp=args.tcp,
         game_type=game_type,
         show_enter=args.enter,
         show_exit=args.exit,
         score_wait_time=args.score_wait_time,
         countdown_time=args.countdown_time,
         mqtt_broker=args.mqtt_broker,
-        device_id=args.device_id,
+        device_id=device_id,
         test_mode=args.test
     )
     game.run()
