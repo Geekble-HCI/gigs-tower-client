@@ -7,12 +7,12 @@
 #define ECHO_1 3
 
 
-int16_t dead_time = 2000;
+int16_t dead_time = 1000;
 int16_t d_goal = 2800;
 
 uint16_t T = 0;
 uint16_t T_prev = 0;
-uint16_t dt = 0;
+uint16_t deltaTime = 0;
 
 uint16_t Period_ping = 25;
 uint16_t T_ping = 0;
@@ -45,7 +45,7 @@ void update(){
         T_1 += dead_time;
       }
     }
-  }else{ T_1 -= dt; }
+  }else{ T_1 -= deltaTime; }
 }
 
 void trig(){
@@ -75,9 +75,9 @@ void setup() {
 void loop() {
   T_prev = T;
   T = millis();
-  dt = T - T_prev;
+  deltaTime = T - T_prev;
 
-  T_ping += dt;
+  T_ping += deltaTime;
   if(T_ping >= Period_ping){
     T_ping -= Period_ping;
     trig();
