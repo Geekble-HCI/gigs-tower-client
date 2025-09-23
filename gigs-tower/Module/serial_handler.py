@@ -147,3 +147,23 @@ class SerialHandler:
         """등록된 모든 포트 순회하며 reset/reconnect"""
         for device in list(self.serial_ports.keys()):
             self.reset_and_reconnect_port(device)
+
+    def send_message(self, message):
+        """연결된 모든 시리얼 포트로 메시지 전송"""
+        if not self.is_connected:
+            print(f"[SERIAL] Send skipped: not connected - {message}")
+            return
+        
+        sent_count = 0
+        for device, port in self.serial_ports.items():
+            try:
+                if port and port.is_open:
+                    port.write(f"{message}\n".encode())
+                    port.flush()
+                    sent_count += 1
+                    print(f"[SERIAL] Sent '{message}' to {device}")
+            except Exception as e:
+                print(f"[SERIAL] Failed to send '{message}' to {device}: {e}")
+        
+        if sent_count == 0:
+            print(f"[SERIAL] No active ports available to send: {message}")
