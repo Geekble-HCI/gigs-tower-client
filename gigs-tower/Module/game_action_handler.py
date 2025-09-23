@@ -15,7 +15,7 @@ class GameActionHandler:
         print(f"[Action] RFID '{rfid}' detected from {ev.source}, state={current}")
 
         # 마스터 카드 태그 시
-        MASTER_CARDS_UID = {"7C9E4705", "QWER1234", "87654321"}  # 추가 UID 가능
+        MASTER_CARDS_UID = {"A736C701", "A3B60E02", "DCA30E02", "C25AC601", "8D37B001", "6265B501", "QWER1234"}  # 추가 UID 가능
         if rfid in MASTER_CARDS_UID and current in [GameState.PLAYING, GameState.COUNTDOWN]:
             # 점수는 0점으로 처리하여 종료처리
             self.gsm.show_result(0)
