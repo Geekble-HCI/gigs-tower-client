@@ -34,7 +34,7 @@ if __name__ == "__main__":
     # device_id를 type 값으로 자동 설정 (명시적으로 지정되지 않은 경우)
     device_id = args.device_id
     if device_id is None:
-        device_id = str(args.type)
+        device_id = str(game_type)
         print(f"[INFO] Device ID auto-generated from type: {device_id}")
 
     game = GIGS(
