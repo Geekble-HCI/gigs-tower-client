@@ -69,14 +69,14 @@ class GameActionHandler:
 
         elif current == GameState.WAITING:
             # 마스터 카드가 아닌 경우에만 게임 차단 상태 체크
-            if not is_master_card and getattr(self.gsm, 'game_blocked', False):
+            if getattr(self.gsm, 'game_blocked', False):
                 print("[Action] Game is blocked due to error - countdown cancelled")
                 return
 
             print("[Action] WAITING -> COUNTDOWN")
             if getattr(self._gigs, "use_tcp", False):
                 self._gigs.tcp_handler.send_message('-1')
-            self.gsm.start_countdown(force=is_master_card)
+            self.gsm.start_countdown()
 
         elif current == GameState.PLAYING:
             print("[Action] PLAYING -> RESULT")
