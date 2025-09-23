@@ -1,39 +1,62 @@
-#define Y_MIN 95
-#define Y_MAX 105
+#define THRESHOLD 7   // 기준값 변동 허용치
 
-int16_t bias = -60;  // horizontal bias
+int16_t bias = -60;   // horizontal bias
 
 char c;
 
 double x = 0;
-double y = 0;
-double z = 0;
+double zero_x = 0;
 
-bool was_below = false;  // 이전에 y가 MIN 이하였는지 기억
+bool calibrated = false;   // 영점 보정 완료 여부
+bool out_of_range = false; // 현재 상태 (영점 벗어남 여부)
 
 void setup() {
-  Serial.begin(115200);   // 나노는 그냥 이렇게만 쓰면 됩니다
+  Serial.begin(115200);
+
+  // 초기 2초간 값 평균내서 영점 설정
+  long startTime = millis();
+  long count = 0;
+  double sum_x = 0;
+
+  while (millis() - startTime < 2000) {   // 2초 동안 수집
+    if (Serial.available()) {
+      c = Serial.read();
+      if (c == '*') {
+        double temp_x = Serial.parseFloat() - bias;
+        sum_x += temp_x;
+        count++;
+      }
+    }
+  }
+
+  if (count > 0) {
+    zero_x = sum_x / count;
+    calibrated = true;
+  }
+
+  // Serial.println("Calibration done!");
+  // Serial.print("Zero X: "); Serial.println(zero_x);
 }
 
 void loop() {
+  if (!calibrated) return;   // 아직 보정 안됐으면 무시
+
   if (Serial.available()) {
     c = Serial.read();
     if (c == '*') {
       x = Serial.parseFloat() - bias;
-      y = Serial.parseFloat() - bias;
-      z = Serial.parseFloat() - bias;
 
-      // y값 디버깅 출력
-      // Serial.print("Y: ");
-      // Serial.println(y);
+      bool is_out = (abs(x - zero_x) >= THRESHOLD);
 
-      // 조건: y가 MIN 이하 → MAX 이상으로 바뀔 때
-      if (y <= Y_MIN) {
-        was_below = true;   // 바닥 구간 통과
+      // 상태가 "범위 안 → 범위 밖"으로 바뀔 때만 1 출력
+      if (is_out && !out_of_range) {
+        Serial.println('1');
+        out_of_range = true;
       }
-      if (was_below && y >= Y_MAX) {
-        Serial.println('1');   // 문자열 '1'이 아니라 숫자 1 출력
-        was_below = false;  // 다시 초기화
+
+      // 다시 범위 안으로 들어오면 상태 초기화
+      if (!is_out && out_of_range) {
+        out_of_range = false;
       }
     }
   }

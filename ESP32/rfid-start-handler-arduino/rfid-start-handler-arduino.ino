@@ -9,7 +9,7 @@
 #define PN532_SS    4 // blue
 #define PN532_PWR   7 // red, VCC 제어용 핀
 
-#define DELAY_TIME 3000
+#define DELAY_TIME 5000
 
 Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 
