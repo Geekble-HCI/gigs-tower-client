@@ -96,9 +96,12 @@ class SerialHandler:
         # 레거시 'a' → RFID
         if s == 'a':
             return GameEvent(kind=EventType.RFID_DETECTED, source=InputSource.SERIAL, raw=s)
-        # 숫자 → 점수
-        if s.isdigit():
-            return GameEvent(kind=EventType.SCORE_RECEIVED, source=InputSource.SERIAL, raw=s, score=int(s))
+        # 숫자 (정수 또는 소수점) → 점수
+        try:
+            score_value = float(s)
+            return GameEvent(kind=EventType.SCORE_RECEIVED, source=InputSource.SERIAL, raw=s, score=score_value)
+        except ValueError:
+            pass
         return GameEvent(kind=EventType.UNKNOWN, source=InputSource.SERIAL, raw=s)
 
     def is_ready(self):
