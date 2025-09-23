@@ -1,7 +1,6 @@
 import pygame
 from Module.game_handler import GameHandler
 from Module.sound_manager import SoundManager
-from Module.tcp_handler import TCPHandler
 from Module.serial_handler import SerialHandler
 from Module.game_state import GameState, GameStateManager
 from Module.screen_manager import ScreenManager
@@ -17,7 +16,7 @@ class GIGS:
     # ============================================================================
     # 초기화 관련 메서드들
     # ============================================================================
-    def __init__(self, use_tcp=False, game_type=1, show_enter=False, show_exit=False,
+    def __init__(self, game_type=1, show_enter=False, show_exit=False,
                  score_wait_time=15, countdown_time=10, mqtt_broker=None, device_id=None,
                  test_mode=False):
         pygame.init()
@@ -66,7 +65,7 @@ class GIGS:
         # 모드 플래그
         self.test_mode = test_mode
 
-        self.init_mode(show_enter, show_exit, use_tcp, test_mode)
+        self.init_mode(show_enter, show_exit, test_mode)
 
     # 시리얼 이벤트 → 액션 핸들러 라우팅
     def _route_serial_event(self, action, ev):
@@ -79,7 +78,7 @@ class GIGS:
         else:
             print(f"[Serial] Unknown/ignored: {ev.raw}")
 
-    def init_mode(self, show_enter, show_exit, use_tcp, test_mode):
+    def init_mode(self, show_enter, show_exit, test_mode):
         if test_mode:
             print("[TEST MODE] Keyboard input enabled:")
             print("  - A: Mock RFID detected (8-char UID : QWER1234)")
@@ -94,43 +93,16 @@ class GIGS:
         else:
             self.game_state.show_init()
         
-        # ENTER/EXIT/GAME 모드 모두 시리얼/TCP 통신 설정 필요
-        self.setup_communications(use_tcp)
+        # ENTER/EXIT/GAME 모드 모두 시리얼 통신 설정 필요
+        self.setup_communications()
 
     # ============================================================================
     # 통신 관련 메서드들
     # ============================================================================
-    def setup_communications(self, use_tcp):
-        self.tcp_handler = None
-        self.use_tcp = use_tcp
-        if use_tcp:
-            self.tcp_handler = TCPHandler(self.OnReceivedTCPMessage)
-            self.tcp_handler.setup()
-            self.tcp_handler.start_monitoring()
-
+    def setup_communications(self):
         self.serial_handler.setup()
         self.serial_handler.start_monitoring()
 
-    # def wait_for_connections(self):
-    #     while True:
-    #         running = self.input_handler.process_events()
-    #         if not running:
-    #             return
-
-    #         self.screen_manager.process_message_queue()
-
-    #         if self.game_state.current_state in [GameState.ENTER, GameState.EXIT]:
-    #             pygame.time.wait(100)
-    #             continue
-
-    #         if self.serial_handler.is_ready():
-    #             if not self.use_tcp or (self.use_tcp and self.tcp_handler.is_ready()):
-    #                 break
-
-    #         pygame.time.wait(100)
-
-    #     if self.game_state.current_state not in [GameState.ENTER, GameState.EXIT]:
-    #         self.game_state.show_waiting()
 
     def wait_for_connections(self):
         waiting_shown = False
@@ -150,11 +122,10 @@ class GIGS:
                 pygame.time.wait(100)
                 continue
 
-            # 시리얼/TCP 준비 여부 확인
+            # 시리얼 준비 여부 확인
             serial_ready = self.serial_handler.is_ready()  # reset/reconnect 완료 시 True
-            tcp_ready = (not self.use_tcp) or (self.use_tcp and self.tcp_handler.is_ready())
 
-            if serial_ready and tcp_ready:
+            if serial_ready:
                 if not waiting_shown:
                     self.game_state.show_waiting()  # 여기서만 호출
                     waiting_shown = True
@@ -163,25 +134,16 @@ class GIGS:
             pygame.time.wait(100)
 
     
-    def OnReceivedTCPMessage(self, message):
-        try:
-            score = float(message)
-            if score > 0 and self.game_state.current_state == GameState.PLAYING:
-                self.score_manager.add_score(score)
-        except ValueError:
-            print(f"Invalid message format: {message}")
 
     # ============================================================================
     # 게임 상태 관리 메서드들
     # ============================================================================
     def handle_state_change(self, new_state):
         if new_state == GameState.PLAYING:
-            if self.use_tcp:
-                self.tcp_handler.send_message('-2')
+            self.serial_handler.send_message('-2')
             self.score_manager.reset_score()
         elif new_state == GameState.SCORE:
-            if self.use_tcp:
-                self.tcp_handler.send_message('-3')
+            self.serial_handler.send_message('-3')
             final_score = int(self.score_manager.get_total_score())
             self.game_state.show_score(final_score)
 

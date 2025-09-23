@@ -3,7 +3,6 @@ from gigs import GIGS
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Samyang Pop Game Client')
-    parser.add_argument('--tcp', action='store_true', help='Enable TCP connection')
     parser.add_argument('--type', type=int, choices=[1,2,3,4,5,6,7,8], default=1,
                       help='''Game type:
     1: Healthy Burger
@@ -38,7 +37,6 @@ if __name__ == "__main__":
         print(f"[INFO] Device ID auto-generated from type: {device_id}")
 
     game = GIGS(
-        use_tcp=args.tcp,
         game_type=game_type,
         show_enter=args.enter,
         show_exit=args.exit,
