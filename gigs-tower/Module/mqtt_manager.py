@@ -71,11 +71,18 @@ class MQTTManager:
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/command")
         self.mqtt_client.add_subscription("device/command/broadcast")
 
-        # 새로운 플레이어 피드백 토픽 추가
+        # 새로운 플레이어 피드백 토픽
         self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/player_feedback")
+
+        # ack / err 메세지 수신 토픽
+        self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/state/ack")
+        self.mqtt_client.add_subscription(f"device/{self.mqtt_client.device_id}/state/err")
+        self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/state/ack")  # device_id 없을 시, 대안
+        self.mqtt_client.add_subscription(f"device/{self.mqtt_client.ip_address}/state/err")  # device_id 없을 시, 대안
 
         # 메시지 콜백 설정
         self.mqtt_client.set_message_callback(self._handle_mqtt_message)
+
     
     def _setup_command_handler(self, sound_manager, game_handler):
         """MQTT 명령 핸들러 설정"""
@@ -96,8 +103,8 @@ class MQTTManager:
                 CommandType.MUTE_TOGGLE
                 ], MuteCommand(sound_manager))
             
-            # Ping은 MQTTClient 인스턴스를 직접 주입해야 publish 가능
             self.command_handler.register(CommandType.PING, PingCommand(self))
+
     
     def publish_device_register(self):
         """연결 직후 장치 등록 메시지 강제 발행"""
@@ -127,13 +134,16 @@ class MQTTManager:
         """MQTT 메시지 통합 처리"""
         try:
             if "player_feedback" in topic:
-                # 플레이어 피드백 메시지 처리
                 self._handle_player_feedback(payload)
             elif "command" in topic:
-                # 기존 명령 메시지 처리
                 self._handle_mqtt_command(topic, payload)
+            elif topic.endswith("/ack"):
+                print(f"[MQTT][ACK] {payload}")
+            elif topic.endswith("/err"):
+                print(f"[MQTT][ERR] {payload.get('message', 'Unknown error')}")
+                self._handle_error_message(payload)
             else:
-                print(f"[MQTT] Unknown topic: {topic}")
+                print(f"[MQTT] Unknown topic: {topic}, payload={payload}")
         except Exception as e:
             print(f"[MQTT] Message processing error: {e}")
 
@@ -178,6 +188,24 @@ class MQTTManager:
     def set_game_state_manager(self, game_state_manager):
         """GameStateManager 참조 설정"""
         self.game_state_manager = game_state_manager
+
+    def _handle_error_message(self, payload):
+        """서버로부터의 에러 메시지 처리"""
+        try:
+            # payload.data에서 실제 에러 정보 추출
+            error_data = payload.get('data', {})
+            error_code = error_data.get('code')
+            error_message = error_data.get('message', 'Unknown error')
+
+            print(f"[MQTT] Error received: {error_code} - {error_message}")
+
+            # GameStateManager에 에러 전달
+            if hasattr(self, 'game_state_manager') and error_code:
+                self.game_state_manager.show_error(error_code, error_message)
+                print(f"[MQTT] Error displayed on screen: {error_code}")
+
+        except Exception as e:
+            print(f"[MQTT] Error message handling failed: {e}")
 
     def disconnect(self):
         """MQTT 연결 해제"""

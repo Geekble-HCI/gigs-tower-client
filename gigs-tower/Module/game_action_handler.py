@@ -68,10 +68,15 @@ class GameActionHandler:
             self.gsm.show_waiting()
 
         elif current == GameState.WAITING:
+            # 마스터 카드가 아닌 경우에만 게임 차단 상태 체크
+            if not is_master_card and getattr(self.gsm, 'game_blocked', False):
+                print("[Action] Game is blocked due to error - countdown cancelled")
+                return
+
             print("[Action] WAITING -> COUNTDOWN")
             if getattr(self._gigs, "use_tcp", False):
                 self._gigs.tcp_handler.send_message('-1')
-            self.gsm.start_countdown()
+            self.gsm.start_countdown(force=is_master_card)
 
         elif current == GameState.PLAYING:
             print("[Action] PLAYING -> RESULT")
@@ -96,15 +101,29 @@ class GameActionHandler:
     def on_command(self, ev: GameEvent):
         cs = self.gsm.current_state
 
+        # 마스터 카드 권한 체크 (게임 명령은 마스터 권한으로 처리)
+        MASTER_CARDS_UID = {"7C9E4705", "QWER1234", "87654321"}
+        is_master_command = hasattr(ev, 'rfid') and ev.rfid in MASTER_CARDS_UID
+
         if ev.kind == EventType.GAME_START:
             if cs == GameState.INIT:
                 print("[GameCmd] INIT -> WAITING")
                 self.gsm.show_waiting()
             elif cs == GameState.WAITING:
+                # 마스터 명령이 아닌 경우에만 게임 차단 상태 체크
+                if not is_master_command and getattr(self.gsm, 'game_blocked', False):
+                    print("[GameCmd] Game is blocked due to error - countdown cancelled")
+                    return
+
+                # 마스터 명령인 경우 에러 상태 자동 클리어
+                if is_master_command and getattr(self.gsm, 'game_blocked', False):
+                    self.gsm.clear_error()
+                    print("[GameCmd] Master command cleared error state")
+
                 print("[GameCmd] WAITING -> COUNTDOWN")
                 if getattr(self._gigs, "use_tcp", False):
                     self._gigs.tcp_handler.send_message('-1')
-                self.gsm.start_countdown()
+                self.gsm.start_countdown(force=is_master_command)
             elif cs == GameState.PLAYING:
                 print("[GameCmd] PLAYING -> RESULT (force end)")
                 score = self._gigs.score_manager.get_total_score()

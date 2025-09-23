@@ -54,11 +54,14 @@ class GIGS:
         # MQTT 매니저 생성(기존처럼 game_handler 넘겨도 OK)
         self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, self.game_handler)
 
-        # MQTT 클라이언트를 GameStateManager에 “사후 주입”
+        # MQTT 클라이언트를 GameStateManager에 "사후 주입"
         client = self.mqtt_manager.get_client()
         self.game_state.mqtt_client = client
         self.game_state.device_id = client.device_id if client else "unknown_client"
         self.game_state.device_ip = client.ip_address if client else "unknown_ip"
+
+        # MQTTManager에 GameStateManager 연결 (에러 메시지 처리를 위해 필요)
+        self.mqtt_manager.set_game_state_manager(self.game_state)
 
         # 모드 플래그
         self.test_mode = test_mode

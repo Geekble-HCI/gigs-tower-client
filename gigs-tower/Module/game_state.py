@@ -2,6 +2,7 @@ import json
 import threading
 import time
 from datetime import datetime
+import uuid
 from .sound_manager import SoundManager
 
 class GameState:
@@ -43,6 +44,8 @@ class GameStateManager:
         self.device_id = mqtt_client.device_id if mqtt_client else "unknown_client"
         self.device_ip = mqtt_client.ip_address if mqtt_client else "unknown_ip"
         self.current_player_info = None  # 서버로부터 받은 플레이어 정보
+        self.error_thread = None  # 에러 메시지 타이머 스레드
+        self.game_blocked = False  # 게임 실행 차단 플래그
 
     @staticmethod
     def get_game_name(game_type: int, remove_newline: bool = False) -> str:
@@ -67,6 +70,7 @@ class GameStateManager:
     def _build_payload(self, state: str, score: int | float | None = None, rfid: str | None = None) -> dict:
         """서버 전송용 페이로드 생성 (단순화)"""
         progress_state = self._get_progress_state(state)
+        cid = str(uuid.uuid4())
 
         payload = {
             "device_id": self.device_id,
@@ -75,7 +79,9 @@ class GameStateManager:
             "state": state,
             "progress_state": progress_state,
             "rfid": rfid,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "replyTo": f"device/{self.device_id}/state",
+            "correlationId": cid,
         }
 
         if score is not None:
@@ -100,18 +106,23 @@ class GameStateManager:
         """Clears the last stored RFID."""
         self.last_rfid = None
 
-    def start_countdown(self):
+    def start_countdown(self, force=False):
+        # 강제 실행이 아니고 게임이 차단된 상태라면 카운트다운을 시작하지 않음
+        if not force and self.game_blocked:
+            print("[GAME] Cannot start countdown: Game is blocked due to error")
+            return
+
         self.current_state = GameState.COUNTDOWN
         self._publish_state(self.current_state)
         self.countdown = self.countdown_time  # Use the configured countdown time
         self.sound_manager.play_bgm('countdown')  # play_sound -> play_bgm
-        
+
         def countdown_timer():
-            while self.countdown > 0 and self.current_state == GameState.COUNTDOWN:
+            while self.countdown > 0 and self.current_state == GameState.COUNTDOWN and not self.game_blocked:
                 self.screen_update_callback(f"게임이 곧 시작됩니다.\n\n{self.countdown}")
                 self.countdown -= 1
                 time.sleep(1)
-            if self.current_state == GameState.COUNTDOWN:
+            if self.current_state == GameState.COUNTDOWN and not self.game_blocked:
                 self.start_game()
 
         if self.timer_thread and self.timer_thread.is_alive():
@@ -121,19 +132,24 @@ class GameStateManager:
         self.timer_thread.start()
 
     def start_game(self):
+        # 게임이 차단된 상태라면 게임을 시작하지 않음
+        if self.game_blocked:
+            print("[GAME] Cannot start game: Game is blocked due to error")
+            return
+
         self.current_state = GameState.PLAYING
         self._publish_state(self.current_state)
         self.sound_manager.play_bgm_loop('playing')  # play_sound_loop -> play_bgm_loop
         self.screen_update_callback("게임 진행 중...")
         if self.state_change_callback:
             self.state_change_callback(GameState.PLAYING)
-            
+
         def play_timer():
             time.sleep(60)  # 60초 대기
-            if self.current_state == GameState.PLAYING:
+            if self.current_state == GameState.PLAYING and not self.game_blocked:
                 if self.state_change_callback:
                     self.state_change_callback(GameState.SCORE)
-        
+
         if self.play_thread and self.play_thread.is_alive():
             self.play_thread.join(0)
         self.play_thread = threading.Thread(target=play_timer)
@@ -279,6 +295,10 @@ class GameStateManager:
 
     def _restore_state_display(self):
         """원래 상태 표시로 복구"""
+        # 게임이 차단된 상태라면 복구하지 않음
+        if self.game_blocked:
+            return
+
         # 현재 상태에 맞는 기본 메시지로 복구
         if self.current_state == GameState.WAITING:
             game_title = GameStateManager.get_game_name(self.sound_manager.game_type)
@@ -289,3 +309,62 @@ class GameStateManager:
             self.screen_update_callback("게임을 시작해주세요!")
         elif self.current_state == GameState.EXIT:
             self.screen_update_callback("수고하셨습니다!")
+
+    def show_error(self, error_code: str, error_message: str):
+        """에러 메시지 표시 및 게임 차단"""
+        self.game_blocked = True
+
+        # 진행 중인 모든 게임 타이머 중단
+        self._stop_all_timers()
+
+        # 에러 코드에 따른 메시지 생성
+        if error_code == 'PLAYER_NOTFOUND':
+            display_message = f"오류가 발생했습니다.\n\n{error_message}\n\n관리자에게 문의하세요."
+        else:
+            display_message = f"오류: {error_code}\n\n{error_message}"
+
+        self.screen_update_callback(display_message)
+        print(f"[GameState] Error displayed: {error_code} - {error_message}")
+
+        # 에러 메시지를 일정 시간 후에 클리어하는 타이머
+        def clear_error():
+            time.sleep(10)  # 10초 후 에러 클리어
+            if self.game_blocked:  # 여전히 차단된 상태라면
+                self.clear_error()
+
+        if self.error_thread and self.error_thread.is_alive():
+            self.error_thread.join(0)
+        self.error_thread = threading.Thread(target=clear_error, daemon=True)
+        self.error_thread.start()
+
+    def _stop_all_timers(self):
+        """모든 게임 타이머 중단"""
+        # 카운트다운 타이머 중단
+        if self.timer_thread and self.timer_thread.is_alive():
+            # 상태를 바꿔서 타이머 루프 종료
+            if self.current_state == GameState.COUNTDOWN:
+                self.current_state = GameState.WAITING
+
+        # 게임 플레이 타이머 중단
+        if self.play_thread and self.play_thread.is_alive():
+            if self.current_state == GameState.PLAYING:
+                self.current_state = GameState.WAITING
+
+        # 점수 표시 타이머 중단
+        if self.score_thread and self.score_thread.is_alive():
+            if self.current_state == GameState.SCORE:
+                self.current_state = GameState.WAITING
+
+        # 결과 표시 타이머 중단
+        if self.result_thread and self.result_thread.is_alive():
+            if self.current_state == GameState.RESULT:
+                self.current_state = GameState.WAITING
+
+        # BGM 중단
+        self.sound_manager.stop_bgm()
+
+    def clear_error(self):
+        """에러 상태 클리어 및 게임 차단 해제"""
+        self.game_blocked = False
+        print("[GameState] Error cleared, returning to WAITING state")
+        self.show_waiting()  # 대기 상태로 복귀
