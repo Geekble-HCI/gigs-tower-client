@@ -30,8 +30,13 @@ echo %date% %time% : Starting GIGS Enter Screen... >> %LOG_FILE%
 REM 프로젝트 디렉토리로 이동
 cd /d %PROJECT_DIR%
 
-REM 가상환경 활성화
-call venv\Scripts\activate
+REM 윈도우 잠에서 깰동안(?) 10초 대기
+echo %date% %time% : Wait 10 seconds for Windows Setting >> %LOG_FILE%
+timeout /t 10
+
+REM ip값 출력 후 10초대기
+ipconfig
+timeout /t 10
 
 REM ==========================
 REM 무한 재시작 루프
@@ -40,5 +45,6 @@ REM ==========================
 echo %date% %time% : Starting Enter screen (Device ID: %DEVICE_ID%) >> %LOG_FILE%
 python pop-client.py --exit --device_id %DEVICE_ID% >> %LOG_FILE% 2>&1
 echo %date% %time% : Enter screen stopped. Restarting in 10 seconds... >> %LOG_FILE%
+ipconfig
 timeout /t 10
 goto loop
