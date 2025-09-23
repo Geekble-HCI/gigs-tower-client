@@ -75,6 +75,7 @@ class GameActionHandler:
 
             print("[Action] WAITING -> COUNTDOWN")
             self._gigs.serial_handler.send_message('-1')
+            print("[Action] 2 -- Sending serial message '-1' via serial_handler")
             self.gsm.start_countdown()
 
         elif current == GameState.PLAYING:
@@ -101,7 +102,7 @@ class GameActionHandler:
         cs = self.gsm.current_state
 
         # 마스터 카드 권한 체크 (게임 명령은 마스터 권한으로 처리)
-        MASTER_CARDS_UID = {"7C9E4705", "QWER1234", "87654321"}
+        MASTER_CARDS_UID = {"A736C701", "A3B60E02", "DCA30E02", "C25AC601", "8D37B001", "6265B501", "QWER1234"}  # 추가 UID 가능
         is_master_command = hasattr(ev, 'rfid') and ev.rfid in MASTER_CARDS_UID
 
         if ev.kind == EventType.GAME_START:
@@ -121,6 +122,7 @@ class GameActionHandler:
 
                 print("[GameCmd] WAITING -> COUNTDOWN")
                 self._gigs.serial_handler.send_message('-1')
+                print("[GameCmd] 1 -- Sending serial message '-1' via serial_handler")
                 self.gsm.start_countdown(force=is_master_command)
             elif cs == GameState.PLAYING:
                 print("[GameCmd] PLAYING -> RESULT (force end)")
