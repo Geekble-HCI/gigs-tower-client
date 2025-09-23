@@ -319,7 +319,7 @@ class GameStateManager:
 
         # 에러 코드에 따른 메시지 생성
         if error_code == 'PLAYER_NOTFOUND':
-            display_message = f"오류가 발생했습니다.\n\n{error_message}\n\n관리자에게 문의하세요."
+            display_message = f"{error_message}\n\n(관리자에게 문의 바랍니다.)"
         else:
             display_message = f"오류: {error_code}\n\n{error_message}"
 
@@ -328,7 +328,7 @@ class GameStateManager:
 
         # 에러 메시지를 일정 시간 후에 클리어하는 타이머
         def clear_error():
-            time.sleep(10)  # 10초 후 에러 클리어
+            time.sleep(3)  # 3초 후 에러 클리어
             if self.game_blocked:  # 여전히 차단된 상태라면
                 self.clear_error()
 
