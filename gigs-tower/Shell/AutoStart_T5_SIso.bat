@@ -13,9 +13,17 @@ set "LOG_FILE=%PROJECT_DIR%\gigs-enter.log"
 
 REM ==========================
 REM 환경 변수 
+REM 1: "헬시 버거\n챌린지",
+REM 2: "꿀잠 방해꾼\nOUT!",
+REM 3: "불태워!\n칼로링머신",
+REM 4: "볼볼볼\n영양소",
+REM 5: "바이오데이터\n에어시소",
+REM 6: "슛잇!\n무빙 골대",
+REM 7: "입장 화면", 
+REM 8: "퇴장 화면" 
 REM ==========================
-set DEVICE_ID=3
-set GAME_TYPE=3
+set DEVICE_ID=5
+set GAME_TYPE=5
 
 echo ======================================== >> %LOG_FILE%
 echo %date% %time% : Starting GIGS Enter Screen... >> %LOG_FILE%
