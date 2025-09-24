@@ -21,6 +21,7 @@ class MQTTManager:
         self.command_handler = None
         self.game_type = game_type
         self.mqtt_broker_ip = mqtt_broker_ip
+        self.game_handler = game_handler
 
         if self.mqtt_broker_ip == None:
             self._setup_mqtt_broker_ip()
@@ -130,15 +131,60 @@ class MQTTManager:
         )
         print(f"[MQTT] Device register published → {topic}: {payload}")
 
-    def _handle_mqtt_message(self, topic, payload):
-        """MQTT 메시지 통합 처리"""
+    def _handle_ack_message(self, payload):
+        """서버로부터의 정상 응답 처리"""
         try:
-            if "player_feedback" in topic:
-                self._handle_player_feedback(payload)
-            elif "command" in topic:
+            print(f"[MQTT][ACK-DEBUG] Full payload structure: {payload}")
+
+            # payload.data에서 실제 응답 데이터 추출
+            ack_data = payload.get('data', {})
+            print(f"[MQTT][ACK-DEBUG] ack_data: {ack_data}")
+
+            # 실제 데이터 구조에 맞게 nickname 추출: data.data.nickname
+            data_payload = ack_data.get('data', {})
+            nickname = data_payload.get('nickname', '')
+
+            print(f"[MQTT] ACK received with nickname: {nickname}")
+
+            # GameActionHandler에 정상 응답 전달
+            if hasattr(self, 'game_handler'):
+                response_data = {
+                    'success': True,
+                    'nickname': nickname,
+                    'player_info': data_payload,
+                    # 정상 응답이므로 모든 에러 플래그는 False
+                    'duplicate_player': False,
+                    'player_not_found': False,
+                    'duplicate_game': False
+                }
+
+                # correlationId 추출 - 여러 경로에서 시도
+                correlation_id = ack_data.get('correlationId', payload.get('correlationId', ''))
+                print(f"[MQTT][ACK-DEBUG] Extracted correlationId: '{correlation_id}'")
+                print(f"[MQTT][ACK-DEBUG] Available keys in ack_data: {list(ack_data.keys())}")
+                print(f"[MQTT][ACK-DEBUG] Available keys in payload: {list(payload.keys())}")
+
+                # GameActionHandler의 응답 핸들러 호출
+                if hasattr(self.game_handler, '_handle_server_response'):
+                    if correlation_id:
+                        print(f"[MQTT] Calling _handle_server_response with correlationId: {correlation_id}")
+                        self.game_handler._handle_server_response(response_data, correlation_id)
+                    else:
+                        print(f"[MQTT] ERROR: Missing correlationId in ACK response")
+                else:
+                    print(f"[MQTT] ERROR: game_handler._handle_server_response not available")
+
+        except Exception as e:
+            print(f"[MQTT] ACK message handling failed: {e}")
+
+    def _handle_mqtt_message(self, topic, payload):
+        """MQTT 메시지 통합 처리 (수정)"""
+        try:
+            if "command" in topic:
                 self._handle_mqtt_command(topic, payload)
             elif topic.endswith("/ack"):
                 print(f"[MQTT][ACK] {payload}")
+                self._handle_ack_message(payload)  # ACK 메시지도 처리
             elif topic.endswith("/err"):
                 print(f"[MQTT][ERR] {payload.get('message', 'Unknown error')}")
                 self._handle_error_message(payload)
@@ -146,16 +192,6 @@ class MQTTManager:
                 print(f"[MQTT] Unknown topic: {topic}, payload={payload}")
         except Exception as e:
             print(f"[MQTT] Message processing error: {e}")
-
-    def _handle_player_feedback(self, payload):
-        """서버로부터의 플레이어 피드백 처리"""
-        try:
-            # GameStateManager에 피드백 전달
-            if hasattr(self, 'game_state_manager'):
-                self.game_state_manager.handle_player_feedback(payload)
-            print(f"[MQTT] Player feedback processed: {payload.get('nickname', 'Unknown')}")
-        except Exception as e:
-            print(f"[MQTT] Player feedback error: {e}")
 
     def _handle_mqtt_command(self, topic, payload):
         """장치 명령 메시지 처리"""
@@ -189,20 +225,47 @@ class MQTTManager:
         """GameStateManager 참조 설정"""
         self.game_state_manager = game_state_manager
 
-    def _handle_error_message(self, payload):
-        """서버로부터의 에러 메시지 처리"""
+    def _handle_mqtt_command(self, topic, payload):
+        """장치 명령 메시지 처리"""
         try:
-            # payload.data에서 실제 에러 정보 추출
+            if not self.command_handler:
+                print("[MQTT] No command handler available")
+                return
+            data = payload.get("data") or {}
+            command = data.get("command")
+            value = data.get("value")
+            ts = data.get("timestamp")
+            device_id = data.get("deviceId")
+
+            print(f"[MQTT] args: {command}, {value}, {ts}, {device_id}")
+
+            success = self.command_handler.dispatch(command, value, ts, device_id)
+            if not success:
+                print(f"[MQTT] Command processing failed for topic: {topic}")
+        except Exception as e:
+            print(f"[MQTT] Error in command handling: {e}")
+    
+
+    def _handle_error_message(self, payload):
+        try:
             error_data = payload.get('data', {})
             error_code = error_data.get('code')
             error_message = error_data.get('message', 'Unknown error')
-
             print(f"[MQTT] Error received: {error_code} - {error_message}")
 
-            # GameStateManager에 에러 전달
-            if hasattr(self, 'game_state_manager') and error_code:
-                self.game_state_manager.show_error(error_code, error_message)
-                print(f"[MQTT] Error displayed on screen: {error_code}")
+            if hasattr(self, 'game_handler'):
+                response_data = {
+                    'success': False,
+                    'code': error_code,
+                    'message': error_message,
+                    'duplicate_player': error_code in ['PLAYER_DUPLICATE_ENTER','PLAYERGAME_DUPLICATE'],
+                    'player_not_found': error_code in ['PLAYER_NOT_FOUND_GAME','PLAYER_NOT_FOUND_EXIT'],
+                    'duplicate_game': error_code == 'GAME_DUPLICATE_EXECUTION',
+                }
+                correlation_id = error_data.get('correlationId', payload.get('correlationId', ''))
+                if hasattr(self.game_handler, '_handle_server_response') and correlation_id:
+                    print(f"[MQTT] Calling _handle_server_response for ERROR with correlationId: {correlation_id}")
+                    self.game_handler._handle_server_response(response_data, correlation_id)
 
         except Exception as e:
             print(f"[MQTT] Error message handling failed: {e}")

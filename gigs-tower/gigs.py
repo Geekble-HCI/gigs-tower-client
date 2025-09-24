@@ -50,8 +50,8 @@ class GIGS:
         # Serial은 on_event 콜백으로 라우팅
         self.serial_handler = SerialHandler(self, on_event=lambda ev: self._route_serial_event(action, ev))
 
-        # MQTT 매니저 생성(기존처럼 game_handler 넘겨도 OK)
-        self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, self.game_handler)
+        # MQTT 매니저 생성 - GameActionHandler(action)를 전달 (RFID 검증 응답 처리용)
+        self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, action)
 
         # MQTT 클라이언트를 GameStateManager에 "사후 주입"
         client = self.mqtt_manager.get_client()

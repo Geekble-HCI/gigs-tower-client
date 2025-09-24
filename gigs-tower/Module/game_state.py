@@ -12,8 +12,15 @@ class GameState:
     PLAYING = "PLAYING"
     SCORE = "SCORE"
     RESULT = "RESULT"
-    ENTER = "ENTER"  # 새로운 상태 추가
-    EXIT = "EXIT"    # 새로운 상태 추가
+    ENTER = "ENTER"  
+    EXIT = "EXIT"
+    TAG = "TAG"  # 태그 인식 상태
+    ERROR = "ERROR"  # 에러 상태
+
+class PlayerProgressState:
+    ENTER = "ENTER"
+    IN_PROGRESS = "INPROGRESS"
+    EXIT = "EXIT"
 
 class GameStateManager:
     GAME_MESSAGES = {
@@ -29,7 +36,6 @@ class GameStateManager:
 
     def __init__(self, screen_update_callback, state_change_callback=None, game_type=1, score_wait_time=15, countdown_time=10, mqtt_client=None):
         self.current_state = GameState.INIT  # 초기 상태를 INIT으로 변경
-        self.last_rfid = None  # 마지막으로 스캔된 RFID 저장
         self.countdown = 10
         self.timer_thread = None
         self.screen_update_callback = screen_update_callback
@@ -43,9 +49,16 @@ class GameStateManager:
         self.mqtt_client = mqtt_client # MQTT 클라이언트 저장
         self.device_id = mqtt_client.device_id if mqtt_client else "unknown_client"
         self.device_ip = mqtt_client.ip_address if mqtt_client else "unknown_ip"
-        self.current_player_info = None  # 서버로부터 받은 플레이어 정보
+        self.game_type = game_type  # 게임 타입 저장
         self.error_thread = None  # 에러 메시지 타이머 스레드
-        self.game_blocked = False  # 게임 실행 차단 플래그
+        self.game_blocked = False  # 게임 차단 상태
+        self.session_rfid: str | None = None  # 현재 세션(1판)에서 유지할 RFID
+
+    def set_session_rfid(self, rfid: str | None):
+        self.session_rfid = rfid
+
+    def clear_session_rfid(self):
+        self.session_rfid = None
 
     @staticmethod
     def get_game_name(game_type: int, remove_newline: bool = False) -> str:
@@ -60,14 +73,24 @@ class GameStateManager:
 
     def _get_progress_state(self, state: str) -> str:
         """현재 상태에 따른 progress_state 결정"""
-        if state == GameState.ENTER:
-            return 'enter'
+        if state == GameState.TAG:
+            if self.sound_manager.game_type == 7:  # 입장 화면
+                return PlayerProgressState.ENTER
+            elif self.sound_manager.game_type == 8:  # 퇴장 화면
+                return PlayerProgressState.EXIT
+            else:  # type 1~6 (일반 게임)
+                return PlayerProgressState.IN_PROGRESS
+        elif state == GameState.ENTER:
+            return PlayerProgressState.ENTER
         elif state == GameState.EXIT:
-            return 'exit'
+            return PlayerProgressState.EXIT
+        elif state == GameState.ERROR:
+            # ERROR 상태는 항상 WAITING에서 발생하므로 INPROGRESS 반환
+            return PlayerProgressState.IN_PROGRESS
         else:
-            return 'inprogress'
+            return PlayerProgressState.IN_PROGRESS
 
-    def _build_payload(self, state: str, score: int | float | None = None, rfid: str | None = None) -> dict:
+    def _build_payload(self, state: str, score: int | float | None = None, rfid: str | None = None, error_type: str | None = None) -> dict:
         """서버 전송용 페이로드 생성 (단순화)"""
         progress_state = self._get_progress_state(state)
         cid = str(uuid.uuid4())
@@ -86,25 +109,34 @@ class GameStateManager:
 
         if score is not None:
             payload["score"] = score
+        if error_type is not None:
+            payload["error_type"] = error_type
         return payload
         
-    def _publish_state(self, state, score=None, rfid=None):
+    def _publish_state(self, state, score=None, rfid=None, error_type=None):
         if not self.mqtt_client:
-            return
-        # 인자로 rfid가 주어지지 않으면, 저장된 last_rfid 사용
-        rfid_to_publish = rfid if rfid is not None else self.last_rfid
+            return None
+
+        # 인자로 rfid가 주어지지 않으면, 저장된 session_rfid 사용
+        rfid_to_publish = rfid if rfid is not None else self.session_rfid
+
         topic = f"device/{self.device_ip}/state"
-        payload = self._build_payload(state, score, rfid=rfid_to_publish)
+        payload = self._build_payload(state, score, rfid=rfid_to_publish, error_type=error_type)
         self.mqtt_client.publish(topic, json.dumps(payload, ensure_ascii=False), qos=1, retain=False)
 
-    def publish_rfid_detected(self, rfid: str):
-        """Stores the detected RFID and publishes an MQTT message."""
-        self.last_rfid = rfid
-        self._publish_state(self.current_state, rfid=rfid)
+        # INIT, WAITING 상태에서는 서버 응답이 없으므로 None 반환 (타임아웃 방지)
+        if state in [GameState.INIT, GameState.WAITING]:
+            print(f"[GameState] Published {state} state without expecting response (rfid: {rfid_to_publish})")
+            return None
 
-    def clear_last_rfid(self):
-        """Clears the last stored RFID."""
-        self.last_rfid = None
+        # 다른 상태에서는 correlationId 반환 (서버 응답 기대)
+        return payload["correlationId"]
+
+    def publish_rfid_detected(self, rfid: str):
+        """RFID 감지 시 TAG 상태로 MQTT 메시지 전송 (서버 응답 기대)"""
+        self.set_session_rfid(rfid)
+        return self._publish_state(GameState.TAG, rfid=rfid)
+
 
     def start_countdown(self, force=False):
         # 강제 실행이 아니고 게임이 차단된 상태라면 카운트다운을 시작하지 않음
@@ -131,14 +163,16 @@ class GameStateManager:
         self.timer_thread.daemon = True
         self.timer_thread.start()
 
-    def start_game(self):
+    def start_game(self, rfid: str | None = None):
         # 게임이 차단된 상태라면 게임을 시작하지 않음
         if self.game_blocked:
             print("[GAME] Cannot start game: Game is blocked due to error")
             return
 
         self.current_state = GameState.PLAYING
-        self._publish_state(self.current_state)
+        if rfid:
+            self.set_session_rfid(rfid)
+        self._publish_state(self.current_state, rfid=self.session_rfid)
         self.sound_manager.play_bgm_loop('playing')  # play_sound_loop -> play_bgm_loop
         self.screen_update_callback("게임 진행 중...")
         if self.state_change_callback:
@@ -156,9 +190,11 @@ class GameStateManager:
         self.play_thread.daemon = True
         self.play_thread.start()
 
-    def show_score(self, score):
+    def show_score(self, score: int | float, rfid: str | None = None):
         self.current_state = GameState.SCORE
-        self._publish_state(self.current_state, score=score)
+        if rfid:
+            self.set_session_rfid(rfid)
+        self._publish_state(self.current_state, score=score, rfid=self.session_rfid)
         self.sound_manager.play_bgm('score')  # play_sound -> play_bgm
         self.screen_update_callback(f"당신의 점수는?\n\n{score}\n\n태그를 하여\n점수를 획득하세요!")
         
@@ -173,9 +209,11 @@ class GameStateManager:
         self.score_thread = threading.Thread(target=score_timer, daemon=True)
         self.score_thread.start()
 
-    def show_result(self, score):
+    def show_result(self, score: int | float, rfid: str | None = None):
         self.current_state = GameState.RESULT
-        self._publish_state(self.current_state, score=score)
+        if rfid:
+            self.set_session_rfid(rfid)
+        self._publish_state(self.current_state, score=score, rfid=self.session_rfid)
         self.sound_manager.play_bgm('result')  # play_sound -> play_bgm
         self.screen_update_callback(f"{int(score)}점을\n획득했습니다!")
         
@@ -190,20 +228,25 @@ class GameStateManager:
         self.result_thread.daemon = True
         self.result_thread.start()
 
-    def show_waiting(self):
+    def show_waiting(self, publish_state=True):
         """게임 상태를 대기 상태로 초기화하고, 마지막 RFID 정보를 리셋."""
         self.current_state = GameState.WAITING
-        self.last_rfid = None  # 새 세션을 위해 마지막 RFID 리셋
-        self._publish_state(self.current_state)
+        self.clear_session_rfid()
+
+        # 에러 복구 시에는 MQTT 발행하지 않음
+        if publish_state:
+            self._publish_state(self.current_state)
+
         self.countdown = self.countdown_time  # Use the configured countdown time
         if self.timer_thread and self.timer_thread.is_alive():
             self.timer_thread.join(0)
         self.timer_thread = None
         self.sound_manager.stop_bgm()
-        
+
         game_title = GameStateManager.get_game_name(self.sound_manager.game_type)
 
-        self.screen_update_callback(f"{game_title}\n\n태그를 하면\n게임이 시작됩니다!")
+        if self.game_type not in [7, 8]:
+            self.screen_update_callback(f"{game_title}\n\n태그를 하면\n게임이 시작됩니다!")
 
     def show_init(self):
         """초기화 상태 표시"""
@@ -212,93 +255,32 @@ class GameStateManager:
         self.sound_manager.play_bgm_loop('waiting')  # play_sound_loop -> play_bgm_loop
         self.screen_update_callback("시스템 초기화 중...")
 
-    def show_enter(self):
+    def show_enter(self, publish_state=True):
         """입장 상태 표시"""
         self.current_state = GameState.ENTER
-        self._publish_state(self.current_state)
-        self.sound_manager.play_bgm_loop('enter')  # enter.wav 또는 enter.mp3 필요
-        self.screen_update_callback("게임을 시작해주세요!")
+        self.clear_session_rfid()
 
-    def show_exit(self):
+        # 에러 복구 시에는 MQTT 발행하지 않음
+        if publish_state:
+            self._publish_state(self.current_state)
+
+        self.sound_manager.play_bgm_loop('enter')  # enter.wav 또는 enter.mp3 필요
+        self.screen_update_callback("환영합니다!\n태그를 해주세요!")
+
+    def show_exit(self, publish_state=True):
         """퇴장 상태 표시"""
         self.current_state = GameState.EXIT
-        self._publish_state(self.current_state)
+        self.clear_session_rfid()
+
+        # 에러 복구 시에는 MQTT 발행하지 않음
+        if publish_state:
+            self._publish_state(self.current_state)
+
         self.sound_manager.play_bgm_loop('exit')  # exit.wav 또는 exit.mp3 필요
         self.screen_update_callback("수고하셨습니다!")
 
-    def handle_player_feedback(self, feedback_data: dict):
-        """서버로부터 받은 플레이어 피드백 처리"""
-        self.current_player_info = feedback_data
-
-        # 클라이언트에서 UI 메시지 생성
-        ui_message = self._generate_ui_message(feedback_data)
-        # 콜백에 플레이어 정보(feedback_data)를 함께 전달
-        self.screen_update_callback(ui_message, feedback_data)
-
-        # 클라이언트에서 사운드 효과 결정
-        sound_effect = self._determine_sound_effect(feedback_data)
-        if sound_effect:
-            self.sound_manager.play_sfx(sound_effect)
-
-        # 표시 시간 결정
-        duration = self._get_display_duration(feedback_data)
-        import threading
-        threading.Timer(duration, self._restore_state_display).start()
-
-    def _generate_ui_message(self, feedback_data: dict) -> str:
-        """플레이어 정보를 기반으로 UI 메시지 생성"""
-        progress_state = feedback_data.get('progress_state', '')
-        nickname = feedback_data.get('nickname')
-        is_new_player = feedback_data.get('is_new_player', False)
-        game_state = feedback_data.get('game_state')
-
-        if progress_state == 'enter':
-            if nickname:
-                return f"환영합니다!\n{nickname}님" if is_new_player else f"다시 오셨군요!\n{nickname}님"
-            else:
-                return "환영합니다!\n신규 플레이어님" if is_new_player else "환영합니다!"
-
-        elif progress_state == 'inprogress':
-            if game_state == 'RESULT':
-                return f"{nickname}님\n게임 종료!" if nickname else "게임 종료!"
-            else:
-                return f"{nickname}님\n게임 진행 중" if nickname else "게임 진행 중"
-
-        elif progress_state == 'exit':
-            return f"안녕히 가세요!\n{nickname}님" if nickname else "안녕히 가세요!"
-
-        else:
-            return 'RFID 인식됨'
-
-    def _determine_sound_effect(self, feedback_data: dict) -> str:
-        """플레이어 정보를 기반으로 사운드 효과 결정"""
-        progress_state = feedback_data.get('progress_state')
-        game_state = feedback_data.get('game_state')
-
-        if progress_state == 'enter':
-            return 'player_enter'
-        elif progress_state == 'inprogress':
-            return 'game_progress' if game_state == 'RESULT' else 'tag_success'
-        elif progress_state == 'exit':
-            return 'player_exit'
-        else:
-            return 'tag_success'
-
-    def _get_display_duration(self, feedback_data: dict) -> float:
-        """플레이어 정보를 기반으로 표시 시간 결정"""
-        progress_state = feedback_data.get('progress_state', '')
-
-        if progress_state in ['enter', 'exit']:
-            return 3.0
-        else:
-            return 2.0
-
-    def _restore_state_display(self):
+    def restore_state_display(self):
         """원래 상태 표시로 복구"""
-        # 게임이 차단된 상태라면 복구하지 않음
-        if self.game_blocked:
-            return
-
         # 현재 상태에 맞는 기본 메시지로 복구
         if self.current_state == GameState.WAITING:
             game_title = GameStateManager.get_game_name(self.sound_manager.game_type)
@@ -310,61 +292,53 @@ class GameStateManager:
         elif self.current_state == GameState.EXIT:
             self.screen_update_callback("수고하셨습니다!")
 
-    def show_error(self, error_code: str, error_message: str):
-        """에러 메시지 표시 및 게임 차단"""
-        self.game_blocked = True
+    def show_error(self, error_type: str, error_message: str, recovery_state: str = None):
+        """에러 처리 및 이전 상태로 복구"""
 
-        # 진행 중인 모든 게임 타이머 중단
-        self._stop_all_timers()
+        # 현재 상태를 복구 대상으로 저장 (ERROR로 변경하기 전에)
+        previous_state = recovery_state or self.current_state
 
-        # 에러 코드에 따른 메시지 생성
-        if error_code == 'PLAYER_NOTFOUND':
-            display_message = f"{error_message}\n\n(관리자에게 문의 바랍니다.)"
-        else:
-            display_message = f"오류: {error_code}\n\n{error_message}"
+        print(f"[ERROR] Error in {previous_state} state: {error_type}")
 
-        self.screen_update_callback(display_message)
-        print(f"[GameState] Error displayed: {error_code} - {error_message}")
+        # ERROR 상태로 전환
+        self.current_state = GameState.ERROR
+        self.game_blocked = True  # 에러 시 게임 차단
+                        
+        # TODO: MQTT로 에러 상태 전송
+        # self._publish_state(self.current_state, error_type=error_type)
 
-        # 에러 메시지를 일정 시간 후에 클리어하는 타이머
-        def clear_error():
-            time.sleep(3)  # 3초 후 에러 클리어
-            if self.game_blocked:  # 여전히 차단된 상태라면
-                self.clear_error()
+        # 에러 메시지 표시
+        self.screen_update_callback(f"오류 발생\n\n{error_message}")
+
+        # 이전 상태로 복구 (타임아웃 에러의 경우 restore_state_display가 먼저 실행됨)
+        def auto_recover():
+            time.sleep(2.5)  # restore_state_display(1.5초) 이후 실행
+            if self.current_state == GameState.ERROR:
+                print(f"[ERROR] Auto recovery: ERROR → {previous_state}")
+
+                self.game_blocked = False  # 자동 복구 시 차단 해제
+                if previous_state == GameState.ENTER:
+                    self.show_enter(publish_state=False)  # 에러 복구시 MQTT 발행 안함
+                elif previous_state == GameState.EXIT:
+                    self.show_exit(publish_state=False)   # 에러 복구시 MQTT 발행 안함
+                else:
+                    # 기본적으로 WAITING 상태로 복구
+                    self.show_waiting(publish_state=False)  # 에러 복구시 MQTT 발행 안함
 
         if self.error_thread and self.error_thread.is_alive():
             self.error_thread.join(0)
-        self.error_thread = threading.Thread(target=clear_error, daemon=True)
+        self.error_thread = threading.Thread(target=auto_recover, daemon=True)
         self.error_thread.start()
 
-    def _stop_all_timers(self):
-        """모든 게임 타이머 중단"""
-        # 카운트다운 타이머 중단
-        if self.timer_thread and self.timer_thread.is_alive():
-            # 상태를 바꿔서 타이머 루프 종료
-            if self.current_state == GameState.COUNTDOWN:
-                self.current_state = GameState.WAITING
-
-        # 게임 플레이 타이머 중단
-        if self.play_thread and self.play_thread.is_alive():
-            if self.current_state == GameState.PLAYING:
-                self.current_state = GameState.WAITING
-
-        # 점수 표시 타이머 중단
-        if self.score_thread and self.score_thread.is_alive():
-            if self.current_state == GameState.SCORE:
-                self.current_state = GameState.WAITING
-
-        # 결과 표시 타이머 중단
-        if self.result_thread and self.result_thread.is_alive():
-            if self.current_state == GameState.RESULT:
-                self.current_state = GameState.WAITING
-
-        # BGM 중단
-        self.sound_manager.stop_bgm()
-
-    def clear_error(self):
-        """에러 상태 클리어 및 게임 차단 해제"""
+    def recover_from_error(self):
+        """에러 상태에서 WAITING으로 수동 복구"""
+        if self.current_state == GameState.ERROR:
+            print("[ERROR] Manual recovery: ERROR → WAITING")
+            self.show_waiting()
+    
+    def clear_error(self, publish_state: bool = False):
+        """수동 해제(마스터 명령 등)"""
         self.game_blocked = False
-        print("[GameState] Error cleared, returning to WAITING state")
-        self.show_waiting()  # 대기 상태로 복귀
+        print("[GameState] Error cleared")
+        self.show_waiting(publish_state=publish_state)
+
