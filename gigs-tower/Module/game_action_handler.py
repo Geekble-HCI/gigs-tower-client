@@ -358,17 +358,19 @@ class GameActionHandler:
     def _handle_enter_success(self, rfid: str, nickname: str = None):
         """입장 처리 성공 시 실행 (서버에서 받은 nickname 사용)"""
         self.gsm.sound_manager.play_sfx('get')
-        display_name = nickname if nickname else f"Player_{rfid[-4:]}"
-        temp_message = f"환영합니다! {display_name}님\n(RFID: {rfid})"
+        temp_message = f"플레이어 입장\n\n안녕하세요!\n(RFID: {rfid})"
         self.gsm.screen_update_callback(temp_message)
         import threading
         threading.Timer(1.5, lambda: self.gsm.show_enter()).start()
-        print(f"[Action] Player Enter: {display_name} (RFID '{rfid}')")
+        print(f"[Action] Player Enter (RFID '{rfid}')")
 
-    def _handle_exit_success(self, rfid: str, nickname: str = None):
+    def _handle_exit_success(self, rfid: str, recieve_data: str = None):
         """퇴장 처리 성공 시 실행 (서버에서 받은 nickname 사용)"""
         self.gsm.sound_manager.play_sfx('get')
-        display_name = nickname if nickname else f"Player_{rfid[-4:]}"
+
+        print(f"[Action] Player EXIT: recieve data'{recieve_data}')")
+        display_name = recieve_data.get('nickname', f"Player_{rfid[-4:]}") if recieve_data else f"Player_{rfid[-4:]}"
+        print(f"{display_name}")
         temp_message = f"안녕히 가세요!\n{display_name}님\n(RFID: {rfid})"
         self.gsm.screen_update_callback(temp_message)
         import threading
