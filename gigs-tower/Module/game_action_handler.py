@@ -133,7 +133,7 @@ class GameActionHandler:
                 if validation_result.get('duplicate_player'):
                     return {
                         'type': ErrorType.PLAYER_DUPLICATE_ENTER,
-                        'message': "이미 입장한 플레이어입니다.\n중복 입장이 불가능합니다."
+                        'message': "이미 입장한 플레이어입니다.\n(중복 입장이 불가능합니다.)\n\n게임을 시작해주세요!"
                     }
 
             elif game_type in [1, 2, 3, 4, 5, 6]:  # 일반 게임
