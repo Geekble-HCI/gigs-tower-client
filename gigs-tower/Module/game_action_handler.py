@@ -233,7 +233,7 @@ class GameActionHandler:
             if expected_correlation_id in self._pending_responses:
                 response = self._pending_responses.pop(expected_correlation_id)
                 elapsed = round(time.time() - start_time, 3)
-                print(f"[Validation] ✅ Matched response received for {expected_correlation_id} (took {elapsed}s)")
+                print(f"[Validation] Matched response received for {expected_correlation_id} (took {elapsed}s)")
                 # 성공적으로 응답 받았으므로 old responses 정리
                 self._cleanup_old_responses()
                 return response
@@ -241,7 +241,7 @@ class GameActionHandler:
 
         # 타임아웃 발생시 상세 정보 로그
         pending_ids = list(self._pending_responses.keys()) if hasattr(self, '_pending_responses') else []
-        print(f"[Validation] ❌ Response timeout for {expected_correlation_id}")
+        print(f"[Validation] Response timeout for {expected_correlation_id}")
         print(f"[Validation][DEBUG] Final pending IDs: {pending_ids}")
         print(f"[Validation][DEBUG] Total checks performed: {check_count}")
 
