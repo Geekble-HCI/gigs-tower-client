@@ -127,6 +127,13 @@ class GameActionHandler:
             # 네트워크 에러인 경우 바로 반환
             if validation_result.get('network_error'):
                 return validation_result
+            
+             # 서버에서 일반 오류를 명시적으로 보낸 경우 → 그대로 노출
+            if validation_result.get('error') or validation_result.get('success') is False:
+                return {
+                    'type': getattr(ErrorType, 'SERVER_ERROR', 'SERVER_ERROR'),
+                    'message': validation_result.get('message') or validation_result.get('error_message') or "서버 오류가 발생했습니다."
+                }
 
             # 게임 타입별 검증 결과 처리
             if game_type == 7:  # 입장
@@ -152,7 +159,7 @@ class GameActionHandler:
                 if validation_result.get('player_not_found'):
                     return {
                         'type': ErrorType.PLAYER_NOT_FOUND_EXIT,
-                        'message': "퇴장 되었습니다."
+                        'message': "플레이어를 찾을 수 없습니다.\n(퇴장 완료)"
                     }
 
         except Exception as e:
@@ -277,7 +284,7 @@ class GameActionHandler:
         timestamp = datetime.now().isoformat()
         log_entry = {
             "timestamp": timestamp,
-            "rfid": rfid[-4:],  # 보안상 마지막 4자리만
+            "rfid": rfid,
             "game_type": game_type,
             "device_id": self.gsm.device_id,
             "validation_result": result,

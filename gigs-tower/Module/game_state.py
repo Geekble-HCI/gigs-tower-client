@@ -253,7 +253,7 @@ class GameStateManager:
             self.screen_update_callback("환영합니다!\n태그를 해주세요!")
         elif self.sound_manager.game_type == 8:
             # 퇴장
-            self.screen_update_callback("수고하셨습니다!\n퇴장 태그를 해주세요!")
+            self.screen_update_callback("수고하셨습니다!\n태그를 해주세요!")
         else:
             # 게임
             game_title = GameStateManager.get_game_name(self.sound_manager.game_type)
@@ -288,7 +288,7 @@ class GameStateManager:
             self._publish_state(self.current_state)
 
         self.sound_manager.play_bgm_loop('exit')  # exit.wav 또는 exit.mp3 필요
-        self.screen_update_callback("수고하셨습니다!")
+        self.screen_update_callback("수고하셨습니다!\n태그를 해주세요!")
 
     def show_error(self, error_type: str, error_message: str, recovery_state: str = None):
         """에러 처리 및 이전 상태로 복구"""
@@ -349,7 +349,7 @@ class GameStateManager:
         elif self.current_state == GameState.ENTER:
             self.screen_update_callback("게임을 시작해주세요!")
         elif self.current_state == GameState.EXIT:
-            self.screen_update_callback("수고하셨습니다!")
+            self.screen_update_callback("니다!")
 
     def recover_from_error(self):
         """에러 상태에서 WAITING으로 수동 복구"""
