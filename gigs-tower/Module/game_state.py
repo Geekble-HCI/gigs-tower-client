@@ -349,7 +349,7 @@ class GameStateManager:
         elif self.current_state == GameState.ENTER:
             self.screen_update_callback("게임을 시작해주세요!")
         elif self.current_state == GameState.EXIT:
-            self.screen_update_callback("니다!")
+            self.screen_update_callback("수고하셨습니다!\n퇴장 태그를 해주세요!")
 
     def recover_from_error(self):
         """에러 상태에서 WAITING으로 수동 복구"""

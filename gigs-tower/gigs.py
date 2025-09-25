@@ -117,6 +117,11 @@ class GIGS:
 
             self.screen_manager.process_message_queue()
 
+            # 에러 상태면 자동복구/수동복구가 끝날 때까지 아무 것도 덮지 않고 루프만 돌게 함
+            if self.game_state.current_state == GameState.ERROR:
+                pygame.time.wait(50)
+                continue
+
             # ENTER/EXIT 상태일 때는 루프 유지
             if self.game_state.current_state in [GameState.ENTER, GameState.EXIT]:
                 pygame.time.wait(100)
@@ -126,8 +131,9 @@ class GIGS:
             serial_ready = self.serial_handler.is_ready()  # reset/reconnect 완료 시 True
 
             if serial_ready:
-                if not waiting_shown:
-                    self.game_state.show_waiting()  # 여기서만 호출
+                 # 에러가 아닐 때만 WAITING을 초기 1회 표시
+                if not waiting_shown and self.game_state.current_state not in [GameState.ERROR]:
+                    self.game_state.show_waiting()
                     waiting_shown = True
                 break
 
