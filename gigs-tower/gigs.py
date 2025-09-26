@@ -37,7 +37,8 @@ class GIGS:
             game_type=game_type,
             score_wait_time=score_wait_time,
             countdown_time=countdown_time,
-            mqtt_client=None  # GameStateManager 먼저 생성 (mqtt_client는 아래에서 주입)
+            mqtt_client=None,  # GameStateManager 먼저 생성 (mqtt_client는 아래에서 주입)
+            score_provider=lambda: self.score_manager.get_total_score()
         )
 
         # 액션 핸들러 생성(상태 전환의 단일 진입점)

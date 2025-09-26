@@ -34,7 +34,7 @@ class GameStateManager:
         8: "퇴장 화면" 
     }
 
-    def __init__(self, screen_update_callback, state_change_callback=None, game_type=1, score_wait_time=3, countdown_time=10, mqtt_client=None):
+    def __init__(self, screen_update_callback, state_change_callback=None, game_type=1, score_wait_time=3, countdown_time=10, mqtt_client=None, score_provider=None):
         self.current_state = GameState.INIT  # 초기 상태를 INIT으로 변경
         self.countdown = 10
         self.timer_thread = None
@@ -54,6 +54,7 @@ class GameStateManager:
         self.error_thread = None  # 에러 메시지 타이머 스레드
         self.game_blocked = False  # 게임 차단 상태
         self.session_rfid: str | None = None  # 현재 세션(1판)에서 유지할 RFID
+        self.score_provider = score_provider # 점수 조회 외부 콜백으로 DI 
         self.last_score: int | float | None = None
 
     def set_session_rfid(self, rfid: str | None):
@@ -193,8 +194,11 @@ class GameStateManager:
             # 시간이 다 됐을 때 SCORE 상태로 전환
             if self.current_state == GameState.PLAYING and not self.game_blocked:
                 score = 0
-                if hasattr(self, "_gigs") and hasattr(self._gigs, "score_manager"):
-                    score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
+                if callable(self.score_provider):
+                    try:
+                        score = int(self.score_provider())
+                    except Exception as e:
+                        print(f"[GSM] score_provider failed: {e}")
                 self.show_score(score)
 
         if self.play_thread and self.play_thread.is_alive():

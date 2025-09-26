@@ -52,7 +52,6 @@ class GameActionHandler:
         game_type = self.gsm.sound_manager.game_type
         print(f"[Action][TRACE] Starting server validation for RFID '{rfid}' (game_type={game_type}, state={current})")
 
-
         # 서버 검증 (publish TAG + 응답대기)
         error_result = self._validate_tag_request(rfid)
         if error_result:
@@ -86,8 +85,6 @@ class GameActionHandler:
         elif current == GameState.PLAYING:
             print("[Action] PLAYING -> RESULT")
             score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
-            if score == 0:
-                score = 0
             self.gsm.show_result(score)
 
         else:
@@ -131,7 +128,15 @@ class GameActionHandler:
 
         elif ev.kind == EventType.GAME_STOP:
             if cs == GameState.PLAYING:
-                score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
+                # 일관성을 위해 score_provider 우선 사용, 없으면 기존 gigs에서 조회
+                score = 0
+                if getattr(self.gsm, "score_provider", None):
+                    try:
+                        score = int(self.gsm.score_provider())
+                    except Exception as e:
+                        print(f"[GameCmd] score_provider failed: {e}")
+                elif hasattr(self._gigs, "score_manager"):
+                    score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
                 self.gsm.show_score(score, rfid=(self.gsm.session_rfid))
             else:
                 print(f"[GameCmd] STOP ignored in {cs}")
