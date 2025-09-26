@@ -105,7 +105,8 @@ class GameActionHandler:
 
         # 게임 진행 중이면 강제 종료
         if current_state in [GameState.PLAYING, GameState.COUNTDOWN]:
-            self.gsm.show_result(0)  # 강제 종료
+            score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
+            self.gsm.show_result(score)  # 강제 종료
             print("[MASTER] Game force stopped by master card")
             return
         
