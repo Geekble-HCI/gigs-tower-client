@@ -1,5 +1,8 @@
+import os
+import socket
 import threading
 import time
+import uuid
 import paho.mqtt.client as mqtt
 from paho.mqtt.properties import Properties
 from paho.mqtt.packettypes import PacketTypes
@@ -13,7 +16,6 @@ class MQTTClient:
         self.broker_address = broker_address
         self.port = port
         self.device_id = device_id
-        
         try:
             self.ip_address = LocalIpResolver.resolve_ip()
             if not self.ip_address:
@@ -21,13 +23,25 @@ class MQTTClient:
         except Exception as e:
             print(f"[MQTT] IP address resolution failed: {e}")
             self.ip_address = "unknown"
-        
         print(f"[MQTT] Device IP: {self.ip_address}")
         
+        # Paho v2 콜백 API 버전 지정 + MQTT v5
         self.client = mqtt.Client(
-            client_id=self.device_id,
-            protocol=mqtt.MQTTv5    
+            mqtt.CallbackAPIVersion.VERSION2,
+            client_id=f"{socket.gethostname()}-{os.getpid()}-{uuid.uuid4().hex[:6]}",
+            protocol=mqtt.MQTTv5,
         )
+
+        # 재연결 backoff
+        self.client.reconnect_delay_set(min_delay=1, max_delay=10)
+
+        self.conn_props = Properties(PacketTypes.CONNECT)
+        self.conn_props.SessionExpiryInterval = 5  # 초 
+
+        # TODO:LWT 설정 → 예기치 않은 끊김을 서버가 즉시 감지
+        # lwt_topic = f"device/{device_id}/lwt"
+        # lwt_payload = json.dumps({"device_id": device_id, "status": "offline"}, ensure_ascii=False).encode("utf-8")
+        # self.client.will_set(lwt_topic, payload=lwt_payload, qos=1, retain=True)
 
         # 콜백
         self.client.on_connect = self._on_connect_v5
@@ -74,7 +88,13 @@ class MQTTClient:
             try:
                 print(f"[MQTT] connect attempt #{attempt+1} → {self.broker_address}:{self.port}")
                 self._conn_event.clear()
-                self.client.connect(self.broker_address, self.port, keepalive)
+                self.client.connect(
+                    self.broker_address,
+                    self.port,
+                    keepalive,
+                    clean_start=mqtt.MQTT_CLEAN_START_FIRST_ONLY,  # 첫 연결만 clean, 이후엔 세션 유지
+                    properties=self.conn_props
+                )
             except Exception as e:
                 print(f"[MQTT] socket connection exception: {e}")
 
@@ -163,12 +183,14 @@ class MQTTClient:
             # 연결 실패 시에도 wait()가 깨어날 수 있게 이벤트 set (재시도 루프로)
             self._conn_event.set()
 
-    def _on_disconnect_v5(self, client, userdata, reason_code, properties):
+    def _on_disconnect_v5(self, client, userdata, disconnect_flags, reason_code, properties):
         self.is_connected = False
-        print(f"[MQTT] Disconnected (reason_code={reason_code})")
+        reason_str = getattr(properties, "ReasonString", None) if properties else None
+        print(f"[MQTT] Disconnected rc={int(reason_code) if reason_code is not None else None}, "
+            f"flags={disconnect_flags}, reason='{reason_str}'")
     
-    def _on_publish(self, client, userdata, mid):
-        print(f"[MQTT] Publish successful: mid={mid}")
+    def _on_publish(self, client, userdata, mid, reason_code, properties):
+        print(f"[MQTT] Publish successful: mid={mid}, reason={getattr(reason_code, 'name', reason_code)}")
 
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 시 내부에서 자동 호출되는 콜백"""
