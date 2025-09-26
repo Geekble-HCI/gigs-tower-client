@@ -332,8 +332,8 @@ class GameActionHandler:
                     print("[GameCmd] Master command cleared error state")
 
                 print("[GameCmd] WAITING -> COUNTDOWN")
-                if getattr(self._gigs, "use_tcp", False):
-                    self._gigs.tcp_handler.send_message('-1')
+                self._gigs.serial_handler.send_message('-1')
+                print("[GameCmd] 2 -- Sending serial message '-1' via serial_handler")
                 self.gsm.start_countdown(force=is_master_command)
             elif cs == GameState.PLAYING:
                 print("[GameCmd] PLAYING -> RESULT (force end)")
@@ -384,6 +384,6 @@ class GameActionHandler:
             return
 
         print("[Action] WAITING -> COUNTDOWN")
-        if getattr(self._gigs, "use_tcp", False):
-            self._gigs.tcp_handler.send_message('-1')
+        self._gigs.serial_handler.send_message('-1')
+        print("[Action] 2 -- Sending serial message '-1' via serial_handler")
         self.gsm.start_countdown()
