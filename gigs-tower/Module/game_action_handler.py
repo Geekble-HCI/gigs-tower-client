@@ -92,6 +92,53 @@ class GameActionHandler:
 
         else:
             print(f"[Action] RFID event sent to server for state {current}")
+    
+    # 점수 수신
+    def on_score_received(self, ev: GameEvent):
+        score = ev.score or 0
+        if self.gsm.current_state == GameState.PLAYING:
+            self._gigs.score_manager.add_score(score)
+            print(f"[Action] Added {score} points!")
+        else:
+            print(f"[Action] Score {score} ignored in {self.gsm.current_state}")
+    
+    # START/STOP/RESET
+    def on_command(self, ev: GameEvent):
+        cs = self.gsm.current_state
+
+        # 마스터 카드 권한 체크 (게임 명령은 마스터 권한으로 처리)
+        MASTER_CARDS_UID = {"7C9E4705", "QWER1234", "87654321"}
+        is_master_command = hasattr(ev, 'rfid') and ev.rfid in MASTER_CARDS_UID
+
+        if ev.kind == EventType.GAME_START:
+            if cs == GameState.INIT:
+                print("[GameCmd] INIT -> WAITING")
+                self.gsm.show_waiting()
+            elif cs == GameState.WAITING:
+                # 마스터 명령이 아닌 경우에만 게임 차단 상태 체크
+                if not is_master_command and getattr(self.gsm, 'game_blocked', False):
+                    print("[GameCmd] Game is blocked due to error - countdown cancelled")
+                    return
+
+                # 마스터 명령인 경우 에러 상태 자동 클리어
+                if is_master_command  and getattr(self.gsm, 'game_blocked', False):
+                    self.gsm.clear_error()           
+
+                print("[GameCmd] WAITING -> COUNTDOWN")
+                self._gigs.serial_handler.send_message('-1')
+                print("[GameCmd] 2 -- Sending serial message '-1' via serial_handler")
+                self.gsm.start_countdown(force=is_master_command)
+
+        elif ev.kind == EventType.GAME_STOP:
+            if cs == GameState.PLAYING:
+                score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
+                self.gsm.show_score(score, rfid=(self.gsm.session_rfid))
+            else:
+                print(f"[GameCmd] STOP ignored in {cs}")
+
+        elif ev.kind == EventType.GAME_RESET:
+            print("[GameCmd] RESET -> WAITING")
+            self.gsm.show_waiting()
 
     def _handle_master_card(self, rfid: str, current_state: str):
         """마스터키 특권으로 모든 예외 무시"""
@@ -103,19 +150,22 @@ class GameActionHandler:
             self.gsm.recover_from_error()
             print("[MASTER] Error state cleared by master card")
 
+        if current_state == GameState.WAITING:
+            self.gsm.countdown_time = 3      # 짧은 카운트다운
+            ev = GameEvent(kind=EventType.GAME_START, source=InputSource.SERIAL, raw=rfid)
+            self.on_command(ev)
+
         # 게임 진행 중이면 강제 종료
         if current_state in [GameState.PLAYING, GameState.COUNTDOWN]:
-            score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
-            self.gsm.show_result(score)  # 강제 종료
-            print("[MASTER] Game force stopped by master card")
-            return
-        
+            ev = GameEvent(kind=EventType.GAME_STOP, source=InputSource.SERIAL, raw=rfid)
+            self.on_command(ev)
+
         print("[MASTER] Tag processed with master privileges")
 
         # 테스트 모드 표시
-        self.gsm.screen_update_callback(f"마스터 모드\n테스트 진행 중...\n(RFID: {rfid[-4:]})")
+        self.gsm.screen_update_callback(f"마스터 모드\n\n(RFID: {rfid})")
         import threading
-        threading.Timer(2, self.gsm.restore_state_display).start()
+        threading.Timer(1, self.gsm.restore_state_display).start()
 
     def _validate_tag_request(self, rfid: str) -> dict | None:
         """WAITING 상태에서 태그 요청 검증 (서버 필수)"""
@@ -298,63 +348,6 @@ class GameActionHandler:
         """응답 시간 추적 (성능 모니터링용)"""
         self._last_response_time = round(time.time() - start_time, 3)
         print(f"[Performance] Server response time: {self._last_response_time}s")
-
-
-    # 점수 수신
-    def on_score_received(self, ev: GameEvent):
-        score = ev.score or 0
-        if self.gsm.current_state == GameState.PLAYING:
-            self._gigs.score_manager.add_score(score)
-            print(f"[Action] Added {score} points!")
-        else:
-            print(f"[Action] Score {score} ignored in {self.gsm.current_state}")
-
-    # START/STOP/RESET
-    def on_command(self, ev: GameEvent):
-        cs = self.gsm.current_state
-
-        # 마스터 카드 권한 체크 (게임 명령은 마스터 권한으로 처리)
-        MASTER_CARDS_UID = {"7C9E4705", "QWER1234", "87654321"}
-        is_master_command = hasattr(ev, 'rfid') and ev.rfid in MASTER_CARDS_UID
-
-        if ev.kind == EventType.GAME_START:
-            if cs == GameState.INIT:
-                print("[GameCmd] INIT -> WAITING")
-                self.gsm.show_waiting()
-            elif cs == GameState.WAITING:
-                # 마스터 명령이 아닌 경우에만 게임 차단 상태 체크
-                if not is_master_command and getattr(self.gsm, 'game_blocked', False):
-                    print("[GameCmd] Game is blocked due to error - countdown cancelled")
-                    return
-
-                # 마스터 명령인 경우 에러 상태 자동 클리어
-                if is_master_command and getattr(self.gsm, 'game_blocked', False):
-                    self.gsm.clear_error()
-                    print("[GameCmd] Master command cleared error state")
-
-                print("[GameCmd] WAITING -> COUNTDOWN")
-                self._gigs.serial_handler.send_message('-1')
-                print("[GameCmd] 2 -- Sending serial message '-1' via serial_handler")
-                self.gsm.start_countdown(force=is_master_command)
-            elif cs == GameState.PLAYING:
-                print("[GameCmd] PLAYING -> RESULT (force end)")
-                score = self._gigs.score_manager.get_total_score()
-                if score == 0:
-                    score = 0
-                self.gsm.show_result(score)
-            else:
-                print(f"[GameCmd] START ignored in {cs}")
-
-        elif ev.kind == EventType.GAME_STOP:
-            if cs == GameState.PLAYING:
-                print("[GameCmd] show_score(7176)")
-                self.gsm.show_score(7176, rfid=(self.gsm.session_rfid))
-            else:
-                print(f"[GameCmd] STOP ignored in {cs}")
-
-        elif ev.kind == EventType.GAME_RESET:
-            print("[GameCmd] RESET -> WAITING")
-            self.gsm.show_waiting()
 
     def _handle_enter_success(self, rfid: str, nickname: str = None):
         """입장 처리 성공 시 실행 (서버에서 받은 nickname 사용)"""

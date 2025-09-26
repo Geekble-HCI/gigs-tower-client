@@ -41,17 +41,17 @@ class GIGS:
         )
 
         # 액션 핸들러 생성(상태 전환의 단일 진입점)
-        action = GameActionHandler(gsm=self.game_state, gigs_instance=self)
+        self.action = GameActionHandler(gsm=self.game_state, gigs_instance=self)
 
         # 입력/명령 핸들러에 action 주입
-        self.input_handler = InputHandler(self, action_handler=action)
-        self.game_handler = GameHandler(self, action_handler=action)
+        self.input_handler = InputHandler(self, action_handler=self.action)
+        self.game_handler = GameHandler(self, action_handler=self.action)
 
         # Serial은 on_event 콜백으로 라우팅
-        self.serial_handler = SerialHandler(self, on_event=lambda ev: self._route_serial_event(action, ev))
+        self.serial_handler = SerialHandler(self, on_event=lambda ev: self._route_serial_event(self.action, ev))
 
         # MQTT 매니저 생성 - GameHandler를 전달 (MQTT 명령 처리용)
-        self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, self.game_handler)
+        self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, self.game_handler, self.action)
 
         # MQTT 클라이언트를 GameStateManager에 "사후 주입"
         client = self.mqtt_manager.get_client()

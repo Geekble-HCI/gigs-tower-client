@@ -12,8 +12,6 @@ class ScoreManager:
     def add_score(self, score):
         """점수 추가"""
         self.total_score += score
-        if self.total_score > 100:
-            self.total_score = 100
         self.sound_manager.play_sfx('get')
         
     def get_total_score(self):

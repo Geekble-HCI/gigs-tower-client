@@ -9,7 +9,7 @@ from .command_handler import CommandDispatcher, CommandType, GameCommand, MuteCo
 class MQTTManager:
     """MQTT 연결 및 명령 처리를 관리하는 클래스"""
     
-    def __init__(self, mqtt_broker_ip=None, device_id=None, game_type=None, sound_manager=None, game_handler=None):
+    def __init__(self, mqtt_broker_ip=None, device_id=None, game_type=None, sound_manager=None, game_handler=None, action_handler=None):
         """
         MQTTManager 초기화
         Args:
@@ -22,6 +22,7 @@ class MQTTManager:
         self.game_type = game_type
         self.mqtt_broker_ip = mqtt_broker_ip
         self.game_handler = game_handler
+        self.action_handler = action_handler
 
         if self.mqtt_broker_ip == None:
             self._setup_mqtt_broker_ip()
@@ -147,7 +148,7 @@ class MQTTManager:
             print(f"[MQTT] ACK received with nickname: {nickname}")
 
             # GameActionHandler에 정상 응답 전달
-            if hasattr(self, 'game_handler'):
+            if hasattr(self, 'action_handler'):
                 response_data = {
                     'success': True,
                     'nickname': nickname,
@@ -165,10 +166,10 @@ class MQTTManager:
                 print(f"[MQTT][ACK-DEBUG] Available keys in payload: {list(payload.keys())}")
 
                 # GameActionHandler의 응답 핸들러 호출
-                if hasattr(self.game_handler, '_handle_server_response'):
+                if hasattr(self.action_handler, '_handle_server_response'):
                     if correlation_id:
                         print(f"[MQTT] Calling _handle_server_response with correlationId: {correlation_id}")
-                        self.game_handler._handle_server_response(response_data, correlation_id)
+                        self.action_handler._handle_server_response(response_data, correlation_id)
                     else:
                         print(f"[MQTT] ERROR: Missing correlationId in ACK response")
                 else:
@@ -253,7 +254,7 @@ class MQTTManager:
             error_message = error_data.get('message', 'Unknown error')
             print(f"[MQTT] Error received: {error_code} - {error_message}")
 
-            if hasattr(self, 'game_handler'):
+            if hasattr(self, 'action_handler'):
                 response_data = {
                     'success': False,
                     'code': error_code,
@@ -263,9 +264,9 @@ class MQTTManager:
                     'duplicate_game': error_code == 'GAME_DUPLICATE_EXECUTION',
                 }
                 correlation_id = error_data.get('correlationId', payload.get('correlationId', ''))
-                if hasattr(self.game_handler, '_handle_server_response') and correlation_id:
+                if hasattr(self.action_handler, '_handle_server_response') and correlation_id:
                     print(f"[MQTT] Calling _handle_server_response for ERROR with correlationId: {correlation_id}")
-                    self.game_handler._handle_server_response(response_data, correlation_id)
+                    self.action_handler._handle_server_response(response_data, correlation_id)
 
         except Exception as e:
             print(f"[MQTT] Error message handling failed: {e}")

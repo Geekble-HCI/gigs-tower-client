@@ -34,7 +34,7 @@ class GameStateManager:
         8: "퇴장 화면" 
     }
 
-    def __init__(self, screen_update_callback, state_change_callback=None, game_type=1, score_wait_time=15, countdown_time=10, mqtt_client=None):
+    def __init__(self, screen_update_callback, state_change_callback=None, game_type=1, score_wait_time=3, countdown_time=10, mqtt_client=None):
         self.current_state = GameState.INIT  # 초기 상태를 INIT으로 변경
         self.countdown = 10
         self.timer_thread = None
@@ -44,8 +44,9 @@ class GameStateManager:
         self.score_thread = None  # Add score timeout thread
         self.state_change_callback = state_change_callback  # 상태 변경 콜백 추가
         self.play_thread = None
-        self.score_wait_time = score_wait_time  # Store the wait time
-        self.countdown_time = countdown_time  # Store the countdown time
+        self.score_wait_time = 3  # Store the wait time
+        self.countdown_time = countdown_time  # 현재 카운트다운(동적으로 변경 가능)
+        self.default_countdown_time = countdown_time  # 기본값 보관(복귀 시 사용)
         self.mqtt_client = mqtt_client # MQTT 클라이언트 저장
         self.device_id = mqtt_client.device_id if mqtt_client else "unknown_client"
         self.device_ip = mqtt_client.ip_address if mqtt_client else "unknown_ip"
@@ -53,6 +54,7 @@ class GameStateManager:
         self.error_thread = None  # 에러 메시지 타이머 스레드
         self.game_blocked = False  # 게임 차단 상태
         self.session_rfid: str | None = None  # 현재 세션(1판)에서 유지할 RFID
+        self.last_score: int | float | None = None
 
     def set_session_rfid(self, rfid: str | None):
         self.session_rfid = rfid
@@ -144,14 +146,13 @@ class GameStateManager:
 
 
     def start_countdown(self, force=False):
-        # 강제 실행이 아니고 게임이 차단된 상태라면 카운트다운을 시작하지 않음
         if not force and self.game_blocked:
             print("[GAME] Cannot start countdown: Game is blocked due to error")
             return
 
         self.current_state = GameState.COUNTDOWN
         self._publish_state(self.current_state)
-        self.countdown = self.countdown_time  # Use the configured countdown time
+        self.countdown = self.countdown_time 
         self.sound_manager.play_bgm('countdown')  # play_sound -> play_bgm
 
         def countdown_timer():
@@ -184,24 +185,31 @@ class GameStateManager:
             self.state_change_callback(GameState.PLAYING)
 
         def play_timer():
-            time.sleep(60)  # 60초 대기
+            remaining = 50  # 50초 제한
+            while remaining > 0 and self.current_state == GameState.PLAYING and not self.game_blocked:
+                self.screen_update_callback(f"게임 진행 중...\n\n{remaining}")
+                time.sleep(1)
+                remaining -= 1
+            # 시간이 다 됐을 때 SCORE 상태로 전환
             if self.current_state == GameState.PLAYING and not self.game_blocked:
-                if self.state_change_callback:
-                    self.state_change_callback(GameState.SCORE)
+                score = 0
+                if hasattr(self, "_gigs") and hasattr(self._gigs, "score_manager"):
+                    score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
+                self.show_score(score)
 
         if self.play_thread and self.play_thread.is_alive():
             self.play_thread.join(0)
-        self.play_thread = threading.Thread(target=play_timer)
-        self.play_thread.daemon = True
+        self.play_thread = threading.Thread(target=play_timer, daemon=True)
         self.play_thread.start()
 
     def show_score(self, score: int | float, rfid: str | None = None):
         self.current_state = GameState.SCORE
+        self.last_score = score
         if rfid:
             self.set_session_rfid(rfid)
         self._publish_state(self.current_state, score=score, rfid=self.session_rfid)
         self.sound_manager.play_bgm('score')  # play_sound -> play_bgm
-        self.screen_update_callback(f"당신의 점수는?\n\n{score}\n\n태그를 하여\n점수를 획득하세요!")
+        self.screen_update_callback(f"당신의 점수는?\n\n{int(score)}점을\n획득했습니다!")
         
         def score_timer():
             time.sleep(self.score_wait_time)  # Use the configured wait time
@@ -216,6 +224,7 @@ class GameStateManager:
 
     def show_result(self, score: int | float, rfid: str | None = None):
         self.current_state = GameState.RESULT
+        self.last_score = score
         if rfid:
             self.set_session_rfid(rfid)
         self._publish_state(self.current_state, score=score, rfid=self.session_rfid)
@@ -237,6 +246,7 @@ class GameStateManager:
         """게임 상태를 대기 상태로 초기화하고, 마지막 RFID 정보를 리셋."""
         self.current_state = GameState.WAITING
         self.clear_session_rfid()
+        self.countdown_time = self.default_countdown_time # 카운트다운 시간을 기본값으로 복귀
 
         # 에러 복구 시에는 MQTT 발행하지 않음
         if publish_state:
@@ -275,7 +285,7 @@ class GameStateManager:
         if publish_state:
             self._publish_state(self.current_state)
 
-        self.sound_manager.play_bgm_loop('enter')  # TODO:enter.wav 또는 enter.mp3 필요
+        self.sound_manager.play_bgm_loop('enter') 
         self.screen_update_callback("환영합니다!\n태그를 해주세요!")
 
     def show_exit(self, publish_state=True):
@@ -350,6 +360,12 @@ class GameStateManager:
             self.screen_update_callback("게임을 시작해주세요!")
         elif self.current_state == GameState.EXIT:
             self.screen_update_callback("수고하셨습니다!\n퇴장 태그를 해주세요!")
+        elif self.current_state == GameState.SCORE:
+            s = int(self.last_score or 0)
+            self.screen_update_callback(f"당신의 점수는?\n\n{s}점을\n획득했습니다!")
+        elif self.current_state == GameState.RESULT:
+            s = int(self.last_score or 0)
+            self.screen_update_callback(f"{s}점을\n획득했습니다!")
 
     def recover_from_error(self):
         """에러 상태에서 WAITING으로 수동 복구"""
