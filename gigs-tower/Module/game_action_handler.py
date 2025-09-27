@@ -49,7 +49,7 @@ class GameActionHandler:
             return
         
         # ===== 항상 TAG 발행 → 서버 검증 수행 (단일 경로) =====
-        game_type = self.gsm.sound_manager.game_type
+        game_type = self.gsm.game_type
         print(f"[Action][TRACE] Starting server validation for RFID '{rfid}' (game_type={game_type}, state={current})")
 
         # 서버 검증 (publish TAG + 응답대기)
@@ -74,13 +74,17 @@ class GameActionHandler:
         server_response = getattr(self, '_server_response', {})
         nickname = server_response.get('nickname', '')
 
+        fallback_name = f"Player_{rfid[-4:]}"
+        self.gsm.session_nickname = nickname or fallback_name
+        self.gsm.session_rfid = rfid
+
         # 화면 상태와 무관하게, game_type으로 처리 (TAG → PlayerProgressState는 GSM가 생성)
         if game_type == 7:      # ENTER 장치
             self._handle_enter_success(rfid, nickname)
         elif game_type == 8:    # EXIT 장치
             self._handle_exit_success(rfid, nickname)
         elif game_type in (1,2,3,4,5,6):  # 게임 장치
-            self._handle_waiting_success(rfid)  # COUNTDOWN 시작
+            self._handle_waiting_success(rfid, nickname)  # COUNTDOWN 시작
 
         elif current == GameState.PLAYING:
             print("[Action] PLAYING -> RESULT")
@@ -376,13 +380,26 @@ class GameActionHandler:
         threading.Timer(1.5, lambda: self.gsm.show_exit()).start()
         print(f"[Action] Player EXIT: {display_name} (RFID '{rfid}')")
 
-    def _handle_waiting_success(self, rfid: str):
+    def _handle_waiting_success(self, rfid: str,  nickname: str | None = None):
         """대기 상태 처리 성공 시 실행"""
         if getattr(self.gsm, 'game_blocked', False):
             print("[Action] Game is blocked due to error - countdown cancelled")
             return
+        
+        def _safe_name():
+            if nickname and isinstance(nickname, str) and nickname.strip():
+                return nickname.strip()
+            if getattr(self.gsm, "session_nickname", None):
+                return self.gsm.session_nickname
+            if getattr(self.gsm, "session_rfid", None):
+                return f"Player_{self.gsm.session_rfid[-4:]}"
+            return "플레이어"
+
+        name = _safe_name()
+        self.gsm.session_nickname = name
+        self.gsm.session_rfid = rfid
 
         print("[Action] WAITING -> COUNTDOWN")
         self._gigs.serial_handler.send_message('-1')
         print("[Action] 2 -- Sending serial message '-1' via serial_handler")
-        self.gsm.start_countdown()
+        self.gsm.start_countdown(nickname=name)

@@ -53,9 +53,10 @@ class GameStateManager:
         self.game_type = game_type  # 게임 타입 저장
         self.error_thread = None  # 에러 메시지 타이머 스레드
         self.game_blocked = False  # 게임 차단 상태
-        self.session_rfid: str | None = None  # 현재 세션(1판)에서 유지할 RFID
         self.score_provider = score_provider # 점수 조회 외부 콜백으로 DI 
         self.last_score: int | float | None = None
+        self.session_rfid: str | None = None  # 현재 세션(1판)에서 유지할 RFID
+        self.session_nickname: str | None = None
 
     def set_session_rfid(self, rfid: str | None):
         self.session_rfid = rfid
@@ -80,6 +81,7 @@ class GameStateManager:
             return PlayerProgressState.ENTER
         elif state == GameState.EXIT:
             return PlayerProgressState.EXIT
+        
         elif state == GameState.TAG:
             if self.sound_manager.game_type == 7:  # 입장 화면
                 return PlayerProgressState.ENTER
@@ -146,10 +148,21 @@ class GameStateManager:
         return self._publish_state(GameState.TAG, rfid=rfid)
 
 
-    def start_countdown(self, force=False):
+    def start_countdown(self,  *, force=False, nickname: str | None = None):
         if not force and self.game_blocked:
             print("[GAME] Cannot start countdown: Game is blocked due to error")
             return
+        
+        def _resolve_name():
+            if nickname and isinstance(nickname, str) and nickname.strip():
+                return nickname.strip()
+            if getattr(self, "session_nickname", None):
+                return self.session_nickname
+            if getattr(self, "session_rfid", None):
+                return f"Player_{self.session_rfid[-4:]}"
+            return "플레이어"
+        
+        name = _resolve_name()
 
         self.current_state = GameState.COUNTDOWN
         self._publish_state(self.current_state)
@@ -158,7 +171,7 @@ class GameStateManager:
 
         def countdown_timer():
             while self.countdown > 0 and self.current_state == GameState.COUNTDOWN and not self.game_blocked:
-                self.screen_update_callback(f"게임이 곧 시작됩니다.\n\n{self.countdown}")
+                self.screen_update_callback(f"{name}님\n게임이 곧 시작됩니다.\n\n{self.countdown}")
                 self.countdown -= 1
                 time.sleep(1)
             if self.current_state == GameState.COUNTDOWN and not self.game_blocked:
