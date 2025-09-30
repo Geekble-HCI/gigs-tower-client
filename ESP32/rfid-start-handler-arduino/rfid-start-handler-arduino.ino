@@ -9,7 +9,7 @@
 #define PN532_SS    4 // blue
 
 // 중복 감지 시간 (ms)
-#define DEBOUNCE_MS 500
+#define DEBOUNCE_MS 2000
 
 Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 
