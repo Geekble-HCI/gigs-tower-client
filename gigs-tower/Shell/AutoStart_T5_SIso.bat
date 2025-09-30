@@ -2,13 +2,13 @@
 setlocal
 
 REM ==========================
-REM CMD 창 최대화
+REM CMD 창 최대화 (현재 창)
 REM ==========================
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "Add-Type -Name Win -Namespace Native -MemberDefinition '[DllImport(\"user32.dll\")]public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);';" ^
-  "; $handle = (Get-Process -Id $PID).MainWindowHandle;" ^
-  "; [Native.Win]::ShowWindow($handle, 3)"
-
+powershell -NoProfile -Command ^
+  "$hwnd = Get-Process -Id $PID | Select-Object -ExpandProperty MainWindowHandle;" ^
+  "Add-Type -MemberDefinition '[DllImport(\"user32.dll\")]public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);' -Name Win32ShowWindow -Namespace Win32;" ^
+  "[Win32.Win32ShowWindow]::ShowWindow($hwnd, 3);"
+  
 REM ==========================
 REM 프로젝트 디렉토리 (USERPROFILE 기준)
 REM ==========================
