@@ -1,14 +1,16 @@
 @echo off
+
+REM ======================================
+REM 현재 배치파일을 최대화된 새 CMD 창에서 실행
+REM ======================================
+if "%MAXIMIZED%" neq "1" (
+    set "MAXIMIZED=1"
+    start "" /max "%~f0"
+    exit
+)
+
 setlocal
 
-REM ==========================
-REM CMD 창 최대화 (현재 창)
-REM ==========================
-powershell -NoProfile -Command ^
-  "$hwnd = Get-Process -Id $PID | Select-Object -ExpandProperty MainWindowHandle;" ^
-  "Add-Type -MemberDefinition '[DllImport(\"user32.dll\")]public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);' -Name Win32ShowWindow -Namespace Win32;" ^
-  "[Win32.Win32ShowWindow]::ShowWindow($hwnd, 3);"
-  
 REM ==========================
 REM 프로젝트 디렉토리 (USERPROFILE 기준)
 REM ==========================
