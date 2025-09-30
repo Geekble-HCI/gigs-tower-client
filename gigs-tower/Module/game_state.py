@@ -27,7 +27,7 @@ class GameStateManager:
         1: "헬시 버거\n챌린지",
         2: "꿀잠 방해꾼\nOUT!",
         3: "불태워!\n칼로링머신",
-        4: "볼볼볼\n영양소",
+        4: "볼볼볼\n골인!",
         5: "바이오데이터\n에어시소",
         6: "슛잇!\n무빙 골대",
         7: "입장 화면", 
@@ -362,7 +362,7 @@ class GameStateManager:
             if self.sound_manager.game_type == 7:
                 self.screen_update_callback("환영합니다!\n태그를 해주세요!")
             elif self.sound_manager.game_type == 8:
-                self.screen_update_callback("수고하셨습니다!\n퇴장 태그를 해주세요!")
+                self.screen_update_callback("수고하셨습니다!\n태그를 해주세요!")
             else:
                 game_title = GameStateManager.get_game_name(self.sound_manager.game_type)
                 self.screen_update_callback(f"{game_title}\n\n태그를 하면\n게임이 시작됩니다!")
@@ -376,7 +376,7 @@ class GameStateManager:
         elif self.current_state == GameState.ENTER:
             self.screen_update_callback("게임을 시작해주세요!")
         elif self.current_state == GameState.EXIT:
-            self.screen_update_callback("수고하셨습니다!\n퇴장 태그를 해주세요!")
+            self.screen_update_callback("수고하셨습니다!\n태그를 해주세요!")
         elif self.current_state == GameState.SCORE:
             s = int(self.last_score or 0)
             self.screen_update_callback(f"당신의 점수는?\n\n{s}점을\n획득했습니다!")

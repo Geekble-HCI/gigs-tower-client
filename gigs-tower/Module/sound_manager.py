@@ -66,7 +66,7 @@ class SoundManager:
             'get': self._load_sound(snd('get_big.wav')),
             'tag_start': self._load_sound(snd('tag_enter.wav')),        # 태그 입장
             'tag_game': self._load_sound(snd('tag_game.wav')),        # 태그 게임 중
-            'tag_end': self._load_sound(snd('tag_exit.wav')),      # 태그 퇴장
+            'tag_end': self._load_sound(snd('tag_exit2.wav')),      # 태그 퇴장
             'tag_error': self._load_sound(snd('tag_error.wav')),        # 태그 에러
         }
 
