@@ -3,7 +3,7 @@ import time
 import paho.mqtt.client as mqtt
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .net_utils import (
+from Module.utils.net_utils import (
     list_candidate_bases,
     is_private_ipv4,
     udp_guess_local_ip,

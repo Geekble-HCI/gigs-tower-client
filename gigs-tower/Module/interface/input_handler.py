@@ -1,6 +1,6 @@
 import pygame
 import sys
-from .events import GameEvent, EventType, InputSource
+from Module.game.events import GameEvent, EventType, InputSource
 
 
 class InputHandler:

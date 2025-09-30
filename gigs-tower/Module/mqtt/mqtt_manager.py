@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 import time
-from Module.game_state import GameStateManager
-from Module.mqtt_scanner import MqttBrokerScanner
+from Module.game.game_state import GameStateManager
+from .mqtt_scanner import MqttBrokerScanner
 from .mqtt_client import MQTTClient
-from .command_handler import CommandDispatcher, CommandType, GameCommand, MuteCommand, PingCommand, VolumeCommand
+from Module.command.command_handler import CommandDispatcher, CommandType, GameCommand, MuteCommand, PingCommand, VolumeCommand
 
 
 class MQTTManager:

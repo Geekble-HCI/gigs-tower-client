@@ -1,16 +1,19 @@
 import pygame
-from Module.game_handler import GameHandler
-from Module.sound_manager import SoundManager
-from Module.serial_handler import SerialHandler
-from Module.game_state import GameState, GameStateManager
-from Module.screen_manager import ScreenManager
-from Module.score_manager import ScoreManager
-from Module.input_handler import InputHandler
-from Module.mqtt_manager import MQTTManager
+from Module.game.game_handler import GameHandler
+from Module.interface.sound_manager import SoundManager
+from Module.mqtt.serial_handler import SerialHandler
+from Module.game.game_state import GameState, GameStateManager
+from Module.interface.screen_manager import ScreenManager
+from Module.interface.score_manager import ScoreManager
+from Module.interface.input_handler import InputHandler
+from Module.mqtt.mqtt_manager import MQTTManager
 
 # 👇 추가
-from Module.game_action_handler import GameActionHandler
-from Module.events import EventType
+from Module.game.game_action_handler import GameActionHandler
+from Module.game.events import EventType
+
+# 경로 헬퍼 import
+import paths
 
 class GIGS:
     # ============================================================================

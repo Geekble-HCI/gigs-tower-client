@@ -1,4 +1,4 @@
-from .command_handler import CommandType
+from Module.command.command_handler import CommandType
 from .events import EventType, InputSource, GameEvent
 
 class GameHandler:

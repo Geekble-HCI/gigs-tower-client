@@ -7,7 +7,7 @@ import paho.mqtt.client as mqtt
 from paho.mqtt.properties import Properties
 from paho.mqtt.packettypes import PacketTypes
 import json
-from .local_ip_resolver import LocalIpResolver
+from Module.utils.local_ip_resolver import LocalIpResolver
 
 class MQTTClient:
     """초기 연결을 보장하고, 연결 이후에만 publish되도록 하는 래퍼"""

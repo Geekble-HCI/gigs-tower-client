@@ -3,7 +3,7 @@ import threading
 import time
 from datetime import datetime
 import uuid
-from .sound_manager import SoundManager
+from Module.interface.sound_manager import SoundManager
 
 class GameState:
     INIT = "INIT"

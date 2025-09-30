@@ -1,5 +1,5 @@
 from sched import Event
-from .events import GameEvent, EventType, InputSource
+from Module.game.events import GameEvent, EventType, InputSource
 from typing import Callable, Optional
 import serial
 import serial.tools.list_ports
