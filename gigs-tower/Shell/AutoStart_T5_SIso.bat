@@ -25,19 +25,27 @@ REM ==========================
 set DEVICE_ID=5
 set GAME_TYPE=5
 
-echo ======================================== >> %LOG_FILE%
-echo %date% %time% : Starting GIGS Enter Screen... >> %LOG_FILE%
+REM ==========================
+REM powershell 전체화면
+REM ==========================
+powershell -NoExit -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('{F11}')"
+
+REM ==========================
+REM ip값 출력 후 10초대기
+REM ==========================
+ipconfig
+timeout /t 10
 
 REM 프로젝트 디렉토리로 이동
 cd /d %PROJECT_DIR%
 
-REM 윈도우 잠에서 깰동안(?) 10초 대기
-echo %date% %time% : Wait 10 seconds for Windows Setting >> %LOG_FILE%
-timeout /t 10
-
-REM ip값 출력 후 10초대기
-ipconfig
-timeout /t 10
+REM ==========================
+REM 깃 저장소 원격 HEAD 기준으로 강제 동기화
+REM ==========================
+echo %date% %time% : Resetting local repo to remote HEAD >> %LOG_FILE%
+git fetch --all >> %LOG_FILE% 2>&1
+git reset --hard origin/HEAD >> %LOG_FILE% 2>&1
+git clean -fd >> %LOG_FILE% 2>&1
 
 REM ==========================
 REM 무한 재시작 루프
@@ -45,6 +53,7 @@ REM ==========================
 :loop
 echo %date% %time% : Starting Enter screen (Device ID: %DEVICE_ID%) >> %LOG_FILE%
 
+REM 파이썬 파일 실행
 python3 pop-client.py --type %GAME_TYPE% --device_id %DEVICE_ID% >> LOG_FILE% 2>&1
 
 echo %date% %time% : Enter screen stopped. Restarting in 10 seconds... >> %LOG_FILE%
