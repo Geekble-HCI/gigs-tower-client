@@ -59,6 +59,7 @@ git clean -fd
 REM 파이썬 파일 실행
 python3 pop-client.py --type %GAME_TYPE% --device_id %DEVICE_ID%
 
+REM 스크린 해제시 10초 대기후 재실행
 echo %date% %time% : Enter screen stopped. Restarting in 10 seconds...
 ipconfig
 timeout /t 10
