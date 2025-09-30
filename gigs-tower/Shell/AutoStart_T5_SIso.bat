@@ -47,10 +47,10 @@ cd /d %PROJECT_DIR%
 REM ==========================
 REM 깃 저장소 원격 HEAD 기준으로 강제 동기화
 REM ==========================
-echo %date% %time% : Resetting local repo to remote HEAD >> %LOG_FILE%
-git fetch --all >> %LOG_FILE% 2>&1
-git reset --hard origin/HEAD >> %LOG_FILE% 2>&1
-git clean -fd >> %LOG_FILE% 2>&1
+echo %date% %time% : Resetting local repo to remote HEAD
+git fetch --all
+git reset --hard origin/HEAD
+git clean -fd
 
 timeout /t 10
 
@@ -58,12 +58,12 @@ REM ==========================
 REM 무한 재시작 루프
 REM ==========================
 :loop
-echo %date% %time% : Starting Enter screen (Device ID: %DEVICE_ID%) >> %LOG_FILE%
+echo %date% %time% : Starting Enter screen (Device ID: %DEVICE_ID%)
 
 REM 파이썬 파일 실행
-python3 pop-client.py --type %GAME_TYPE% --device_id %DEVICE_ID% >> LOG_FILE% 2>&1
+python3 pop-client.py --type %GAME_TYPE% --device_id %DEVICE_ID%
 
-echo %date% %time% : Enter screen stopped. Restarting in 10 seconds... >> %LOG_FILE%
+echo %date% %time% : Enter screen stopped. Restarting in 10 seconds...
 ipconfig
 timeout /t 10
 goto loop
