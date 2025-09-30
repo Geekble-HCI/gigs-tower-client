@@ -45,11 +45,11 @@ REM 프로젝트 디렉토리로 이동
 cd /d %PROJECT_DIR%
 
 REM ==========================
-REM 깃 저장소 원격 HEAD 기준으로 강제 동기화
+REM 깃 저장소 origin/develop 기준으로 강제 동기화
 REM ==========================
-echo %date% %time% : Resetting local repo to remote HEAD
+echo %date% %time% : Resetting local repo to origin/develop
 git fetch --all
-git reset --hard origin/HEAD
+git reset --hard origin/develop
 git clean -fd
 
 timeout /t 10
