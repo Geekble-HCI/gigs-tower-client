@@ -26,9 +26,9 @@ set DEVICE_ID=5
 set GAME_TYPE=5
 
 REM ==========================
-REM powershell 전체화면
+REM powershell창 최대화
 REM ==========================
-powershell -NoExit -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('{F11}')"
+start powershell -NoExit -WindowStyle Maximized
 
 REM ==========================
 REM ip값 출력 후 10초대기
