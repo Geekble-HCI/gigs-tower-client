@@ -2,6 +2,14 @@
 setlocal
 
 REM ==========================
+REM CMD 창 최대화
+REM ==========================
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "Add-Type -Name Win -Namespace Native -MemberDefinition '[DllImport(\"user32.dll\")]public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);';" ^
+  "; $handle = (Get-Process -Id $PID).MainWindowHandle;" ^
+  "; [Native.Win]::ShowWindow($handle, 3)"
+
+REM ==========================
 REM 프로젝트 디렉토리 (USERPROFILE 기준)
 REM ==========================
 set "PROJECT_DIR=%USERPROFILE%\Desktop\gigs-tower-client\gigs-tower"
@@ -26,11 +34,6 @@ set DEVICE_ID=5
 set GAME_TYPE=5
 
 REM ==========================
-REM 현재CMD창 최대화
-REM ==========================
-powershell -command "& {Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $sig = '[DllImport(\"user32.dll\")]public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);'; Add-Type -MemberDefinition $sig -Name NativeMethods -Namespace Win32; $hwnd = (Get-Process -Id $PID).MainWindowHandle; [Win32.NativeMethods]::ShowWindowAsync($hwnd, 3)}"
-
-REM ==========================
 REM ip값 출력 후 10초대기
 REM ==========================
 ipconfig
@@ -46,6 +49,8 @@ echo %date% %time% : Resetting local repo to remote HEAD >> %LOG_FILE%
 git fetch --all >> %LOG_FILE% 2>&1
 git reset --hard origin/HEAD >> %LOG_FILE% 2>&1
 git clean -fd >> %LOG_FILE% 2>&1
+
+timeout /t 10
 
 REM ==========================
 REM 무한 재시작 루프
