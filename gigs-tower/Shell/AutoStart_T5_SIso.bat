@@ -41,24 +41,20 @@ REM ==========================
 ipconfig
 timeout /t 10
 
-REM 프로젝트 디렉토리로 이동
-cd /d %PROJECT_DIR%
-
-REM ==========================
-REM 깃 저장소 origin/develop 기준으로 강제 동기화
-REM ==========================
-echo %date% %time% : Resetting local repo to origin/develop
-git fetch --all
-git reset --hard origin/develop
-git clean -fd
-
-timeout /t 10
-
 REM ==========================
 REM 무한 재시작 루프
 REM ==========================
 :loop
 echo %date% %time% : Starting Enter screen (Device ID: %DEVICE_ID%)
+
+REM 프로젝트 디렉토리로 이동
+cd /d %PROJECT_DIR%
+
+REM 깃 저장소 origin/develop 기준으로 강제 동기화
+echo %date% %time% : Resetting local repo to origin/develop
+git fetch --all
+git reset --hard origin/develop
+git clean -fd
 
 REM 파이썬 파일 실행
 python3 pop-client.py --type %GAME_TYPE% --device_id %DEVICE_ID%
