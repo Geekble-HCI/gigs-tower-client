@@ -26,9 +26,9 @@ set DEVICE_ID=5
 set GAME_TYPE=5
 
 REM ==========================
-REM powershell창 최대화
+REM 현재CMD창 최대화
 REM ==========================
-start powershell -NoExit -WindowStyle Maximized
+powershell -command "& {Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $sig = '[DllImport(\"user32.dll\")]public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);'; Add-Type -MemberDefinition $sig -Name NativeMethods -Namespace Win32; $hwnd = (Get-Process -Id $PID).MainWindowHandle; [Win32.NativeMethods]::ShowWindowAsync($hwnd, 3)}"
 
 REM ==========================
 REM ip값 출력 후 10초대기
