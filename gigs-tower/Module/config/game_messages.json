@@ -1,0 +1,41 @@
+{
+  "game_titles": {
+    "1": { "title": "헬시 버거", "subtitle": "챌린지" },
+    "2": { "title": "꿀잠 방해꾼", "subtitle": "OUT!" },
+    "3": { "title": "불태워!", "subtitle": "칼로링머신" },
+    "4": { "title": "볼볼볼", "subtitle": "골인!" },
+    "5": { "title": "바이오데이터", "subtitle": "에어시소" },
+    "6": { "title": "슛잇!", "subtitle": "무빙 골대" },
+    "7": { "title": "입장 화면" },
+    "8": { "title": "퇴장 화면" }
+  },
+  "state_messages": {
+    "waiting": {
+      "7": "환영합니다!\n태그를 해주세요!",
+      "8": "수고하셨습니다!\n태그를 해주세요!",
+      "default": "{game_title}\n\n태그를 하면\n게임이 시작됩니다!"
+    },
+    "playing": "게임 진행 중...",
+    "countdown": "{nickname}님\n게임이 곧 시작됩니다.\n\n{count}",
+    "score": "당신의 점수는?\n\n{score}점을\n획득했습니다!",
+    "result": "{score}점을\n획득했습니다!",
+    "init": "시스템 초기화 중...",
+    "enter": "환영합니다!\n태그를 해주세요!",
+    "exit": "수고하셨습니다!\n태그를 해주세요!"
+  },
+  "error_messages": {
+    "PLAYER_DUPLICATE_ENTER": "이미 입장한 플레이어입니다.\n(중복 입장이 불가능합니다.)\n\n게임을 시작해주세요!",
+    "GAME_DUPLICATE_EXECUTION": "이미 게임을 실행 하셨습니다.\n\n관리자에게 문의 바랍니다.\n(각 게임 1번만 실행 가능)",
+    "PLAYER_NOT_FOUND_GAME": "입장 처리가 필요합니다.\n먼저 입장 타워에서\n태그해주세요.",
+    "PLAYER_NOT_FOUND_EXIT": "플레이어를 찾을 수 없습니다.\n(퇴장 완료)",
+    "NETWORK_ERROR": "서버 연결 실패\n{detail}\n잠시 후 다시 시도해주세요.",
+    "SERVER_ERROR": "서버 오류가 발생했습니다.",
+    "TAG_DUPLICATE": "이미 처리가 되었습니다.\n(RFID: {rfid})",
+    "TAG_BLOCKED": "게임이 진행 중 입니다.\n(태그 불가)",
+    "MASTER_MODE": "마스터 모드\n\n(RFID: {rfid})"
+  },
+  "success_messages": {
+    "enter": "플레이어 입장\n\n안녕하세요!\n(RFID: {rfid})",
+    "exit": "안녕히 가세요!\n{nickname}님\n(RFID: {rfid})"
+  }
+}

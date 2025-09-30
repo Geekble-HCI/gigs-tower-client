@@ -3,8 +3,10 @@ from datetime import datetime
 from .events import GameEvent, EventType, InputSource
 from .game_state import GameState, GameStateManager
 from .error_type import ErrorType
+from .game_type_strategy import GameTypeStrategyFactory
+from Module.config.game_config import GameConfig
+from Module.config.message_loader import message_loader
 
-# TODO: 리펙토링
 class GameActionHandler:
     """
     Serial / Keyboard / GameCommand에서 들어오는 이벤트를
@@ -24,8 +26,7 @@ class GameActionHandler:
         print(f"[Action][TRACE] Stack trace: {traceback.format_stack()[-3:-1]}")
 
         # 마스터 카드 특권 (모든 예외 무시)
-        MASTER_CARDS_UID = {"A736C701", "A3B60E02", "DCA30E02", "C25AC601", "8D37B001", "6265B501", "QWER1234"}
-        is_master_card = rfid in MASTER_CARDS_UID
+        is_master_card = rfid in GameConfig.MASTER_RFID_CARDS
 
         if is_master_card:
             # 마스터키: 모든 제약 무시하고 테스트 가능
@@ -34,18 +35,18 @@ class GameActionHandler:
         
         # 게임 실행 중 태그 차단
         if current in [GameState.PLAYING, GameState.COUNTDOWN]:
-            self.gsm.screen_update_callback(f"게임이 진행 중 입니다.\n(태그 불가)")
+            self.gsm.screen_update_callback(message_loader.get_error_message('TAG_BLOCKED'))
             import threading
             threading.Timer(1, self.gsm.restore_state_display).start()
             print(f"[Action] Ignored RFID '{rfid}' tag When Game is Playing")
             return
-        
+
         #  # 중복 태그 방지
         if rfid == self.gsm.session_rfid and current not in [GameState.PLAYING, GameState.SCORE]:
-            self.gsm.screen_update_callback(f"이미 처리가 되었습니다.\n(RFID: {rfid})")
+            self.gsm.screen_update_callback(message_loader.get_error_message('TAG_DUPLICATE', rfid=rfid))
             self.gsm.sound_manager.play_sfx('tag_error')
             import threading
-            threading.Timer(1.5, self.gsm.restore_state_display).start()
+            threading.Timer(GameConfig.TAG_DUPLICATE_DELAY, self.gsm.restore_state_display).start()
             print(f"[Action] Duplicate RFID '{rfid}' ignored in state {current}")
             return
         
@@ -81,21 +82,14 @@ class GameActionHandler:
         self.gsm.session_nickname = nickname or fallback_name
         self.gsm.session_rfid = rfid
 
-        # 화면 상태와 무관하게, game_type으로 처리 (TAG → PlayerProgressState는 GSM가 생성)
-        if game_type == 7:      # ENTER 장치
-            self._handle_enter_success(rfid, nickname)
-        elif game_type == 8:    # EXIT 장치
-            self._handle_exit_success(rfid, nickname)
-        elif game_type in (1,2,3,4,5,6):  # 게임 장치
-            self._handle_waiting_success(rfid, nickname)  # COUNTDOWN 시작
+        # 화면 상태와 무관하게, game_type으로 처리 (Strategy 패턴 적용)
+        strategy = GameTypeStrategyFactory.get_strategy(game_type)
+        strategy.handle_tag_success(self, rfid, nickname)
 
-        elif current == GameState.PLAYING:
+        if current == GameState.PLAYING:
             print("[Action] PLAYING -> RESULT")
             score = getattr(self._gigs.score_manager, "get_total_score", lambda: 0)()
             self.gsm.show_result(score)
-
-        else:
-            print(f"[Action] RFID event sent to server for state {current}")
     
     # 점수 수신
     def on_score_received(self, ev: GameEvent):
@@ -111,8 +105,7 @@ class GameActionHandler:
         cs = self.gsm.current_state
 
         # 마스터 카드 권한 체크 (게임 명령은 마스터 권한으로 처리)
-        MASTER_CARDS_UID = {"7C9E4705", "QWER1234", "87654321"}
-        is_master_command = hasattr(ev, 'rfid') and ev.rfid in MASTER_CARDS_UID
+        is_master_command = hasattr(ev, 'rfid') and ev.rfid in GameConfig.MASTER_RFID_CARDS
 
         if ev.kind == EventType.GAME_START:
             if cs == GameState.INIT:
@@ -163,7 +156,7 @@ class GameActionHandler:
             print("[MASTER] Error state cleared by master card")
 
         if current_state == GameState.WAITING:
-            self.gsm.countdown_time = 3      # 짧은 카운트다운
+            self.gsm.countdown_time = GameConfig.MASTER_COUNTDOWN_TIME      # 짧은 카운트다운
             ev = GameEvent(kind=EventType.GAME_START, source=InputSource.SERIAL, raw=rfid)
             self.on_command(ev)
 
@@ -175,7 +168,7 @@ class GameActionHandler:
         print("[MASTER] Tag processed with master privileges")
 
         # 테스트 모드 표시
-        self.gsm.screen_update_callback(f"마스터 모드\n\n(RFID: {rfid})")
+        self.gsm.screen_update_callback(message_loader.get_error_message('MASTER_MODE', rfid=rfid))
         import threading
         threading.Timer(1, self.gsm.restore_state_display).start()
 
@@ -198,32 +191,11 @@ class GameActionHandler:
                     'message': validation_result.get('message') or validation_result.get('error_message') or "서버 오류가 발생했습니다."
                 }
 
-            # 게임 타입별 검증 결과 처리
-            if game_type == 7:  # 입장
-                if validation_result.get('duplicate_player'):
-                    return {
-                        'type': ErrorType.PLAYER_DUPLICATE_ENTER,
-                        'message': "이미 입장한 플레이어입니다.\n(중복 입장이 불가능합니다.)\n\n게임을 시작해주세요!"
-                    }
-
-            elif game_type in [1, 2, 3, 4, 5, 6]:  # 일반 게임
-                if validation_result.get('duplicate_game'):
-                    return {
-                        'type': ErrorType.GAME_DUPLICATE_EXECUTION,
-                        'message': "이미 게임을 실행 하셨습니다.\n\n관리자에게 문의 바랍니다.\n(각 게임 1번만 실행 가능)"
-                    }
-                elif validation_result.get('player_not_found'):
-                    return {
-                        'type': ErrorType.PLAYER_NOT_FOUND_GAME,
-                        'message': "입장 처리가 필요합니다.\n먼저 입장 타워에서\n태그해주세요."
-                    }
-
-            elif game_type == 8:  # 퇴장
-                if validation_result.get('player_not_found'):
-                    return {
-                        'type': ErrorType.PLAYER_NOT_FOUND_EXIT,
-                        'message': "플레이어를 찾을 수 없습니다.\n(퇴장 완료)"
-                    }
+            # 게임 타입별 검증 결과 처리 (Strategy 패턴 적용)
+            strategy = GameTypeStrategyFactory.get_strategy(game_type)
+            error_result = strategy.validate_tag(validation_result)
+            if error_result:
+                return error_result
 
         except Exception as e:
             # 예외 발생 시 네트워크 에러로 처리
@@ -252,13 +224,13 @@ class GameActionHandler:
                 print(f"[Validation][TRACE] No response expected for this message")
                 return None  # 검증 통과로 처리
 
-            # 서버 응답 대기 (3초 타임아웃)
+            # 서버 응답 대기
             print(f"[Validation][TRACE] Starting wait for response with correlationId: {correlation_id}")
-            response = self._wait_for_server_response(correlation_id, timeout=3.0)
+            response = self._wait_for_server_response(correlation_id, timeout=GameConfig.SERVER_VALIDATION_TIMEOUT)
 
             if response is None:
                 # 서버 응답 타임아웃 시 에러 처리
-                raise Exception("서버 응답 시간 초과 (3초)")
+                raise Exception(f"서버 응답 시간 초과 ({GameConfig.SERVER_VALIDATION_TIMEOUT}초)")
 
             # 응답 받은 후 로그 기록
             self._track_response_time(start_time)
@@ -300,7 +272,7 @@ class GameActionHandler:
                 # 성공적으로 응답 받았으므로 old responses 정리
                 self._cleanup_old_responses()
                 return response
-            time.sleep(0.1)  # 100ms 간격으로 체크
+            time.sleep(GameConfig.SERVER_RESPONSE_CHECK_INTERVAL)  # 폴링 간격
 
         # 타임아웃 발생시 상세 정보 로그
         pending_ids = list(self._pending_responses.keys()) if hasattr(self, '_pending_responses') else []
@@ -313,10 +285,10 @@ class GameActionHandler:
         return None  # 타임아웃
 
     def _cleanup_old_responses(self):
-        """오래된 응답들 정리 (5개 이상 쌓이면 정리)"""
-        if hasattr(self, '_pending_responses') and len(self._pending_responses) > 5:
-            # 가장 오래된 항목들 제거 (딕셔너리에서 임의로 일부 제거)
-            keys_to_remove = list(self._pending_responses.keys())[:3]
+        """오래된 응답들 정리"""
+        if hasattr(self, '_pending_responses') and len(self._pending_responses) > GameConfig.MAX_PENDING_RESPONSES:
+            # 가장 오래된 항목들 제거
+            keys_to_remove = list(self._pending_responses.keys())[:GameConfig.CLEANUP_RESPONSE_COUNT]
             for key in keys_to_remove:
                 self._pending_responses.pop(key, None)
             print(f"[Validation] Cleaned up {len(keys_to_remove)} old responses")
@@ -361,13 +333,13 @@ class GameActionHandler:
         self._last_response_time = round(time.time() - start_time, 3)
         print(f"[Performance] Server response time: {self._last_response_time}s")
 
-    def _handle_enter_success(self, rfid: str, nickname: str = None):
+    def _handle_enter_success(self, rfid: str, nickname: str = None):  # nickname은 향후 확장용
         """입장 처리 성공 시 실행 (서버에서 받은 nickname 사용)"""
         self.gsm.sound_manager.play_sfx('tag_start')
-        temp_message = f"플레이어 입장\n\n안녕하세요!\n(RFID: {rfid})"
+        temp_message = message_loader.get_success_message('enter', rfid=rfid)
         self.gsm.screen_update_callback(temp_message)
         import threading
-        threading.Timer(1.5, lambda: self.gsm.show_enter()).start()
+        threading.Timer(GameConfig.TAG_DUPLICATE_DELAY, lambda: self.gsm.show_enter()).start()
         print(f"[Action] Player Enter (RFID '{rfid}')")
 
     def _handle_exit_success(self, rfid: str, recieve_data: str = None):
@@ -377,10 +349,10 @@ class GameActionHandler:
         print(f"[Action] Player EXIT: recieve data'{recieve_data}')")
         display_name = recieve_data.get('nickname', f"Player_{rfid[-4:]}") if recieve_data else f"Player_{rfid[-4:]}"
         print(f"{display_name}")
-        temp_message = f"안녕히 가세요!\n{display_name}님\n(RFID: {rfid})"
+        temp_message = message_loader.get_success_message('exit', nickname=display_name, rfid=rfid)
         self.gsm.screen_update_callback(temp_message)
         import threading
-        threading.Timer(1.5, lambda: self.gsm.show_exit()).start()
+        threading.Timer(GameConfig.TAG_DUPLICATE_DELAY, lambda: self.gsm.show_exit()).start()
         print(f"[Action] Player EXIT: {display_name} (RFID '{rfid}')")
 
     def _handle_waiting_success(self, rfid: str,  nickname: str | None = None):

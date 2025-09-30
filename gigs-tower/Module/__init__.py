@@ -1,5 +1,8 @@
 # Module package - 하위 패키지들을 import하여 기존 호환성 유지
 
+# Config 모듈 (설정 및 메시지)
+from .config import *
+
 # Game 모듈 (게임 핵심 시스템)
 from .game import *
 

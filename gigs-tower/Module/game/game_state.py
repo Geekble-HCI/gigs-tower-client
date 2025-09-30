@@ -4,6 +4,8 @@ import time
 from datetime import datetime
 import uuid
 from Module.interface.sound_manager import SoundManager
+from Module.config.game_config import GameConfig
+from Module.config.message_loader import message_loader
 
 class GameState:
     INIT = "INIT"
@@ -23,17 +25,6 @@ class PlayerProgressState:
     EXIT = "EXIT"
 
 class GameStateManager:
-    GAME_MESSAGES = {
-        1: "헬시 버거\n챌린지",
-        2: "꿀잠 방해꾼\nOUT!",
-        3: "불태워!\n칼로링머신",
-        4: "볼볼볼\n골인!",
-        5: "바이오데이터\n에어시소",
-        6: "슛잇!\n무빙 골대",
-        7: "입장 화면", 
-        8: "퇴장 화면" 
-    }
-
     def __init__(self, screen_update_callback, state_change_callback=None, game_type=1, score_wait_time=3, countdown_time=10, mqtt_client=None, score_provider=None):
         self.current_state = GameState.INIT  # 초기 상태를 INIT으로 변경
         self.countdown = 10
@@ -70,33 +61,22 @@ class GameStateManager:
         game_type에 해당하는 게임명을 반환.
         remove_newline=True일 경우, 줄바꿈(\n)을 공백으로 치환.
         """
-        raw_name = GameStateManager.GAME_MESSAGES.get(game_type, "칼로링머신")
-        if remove_newline:
-            return raw_name.replace("\n", " ")
-        return raw_name
+        return message_loader.get_game_title(game_type, with_newline=not remove_newline)
 
     def _get_progress_state(self, state: str) -> str:
-        """현재 상태에 따른 progress_state 결정"""
+        """현재 상태에 따른 progress_state 결정 (Strategy 패턴 활용)"""
+        from .game_type_strategy import GameTypeStrategyFactory
+
+        # 상태별 직접 매핑
         if state == GameState.ENTER:
             return PlayerProgressState.ENTER
         elif state == GameState.EXIT:
             return PlayerProgressState.EXIT
-        
-        elif state == GameState.TAG:
-            if self.sound_manager.game_type == 7:  # 입장 화면
-                return PlayerProgressState.ENTER
-            elif self.sound_manager.game_type == 8:  # 퇴장 화면
-                return PlayerProgressState.EXIT
-            else:  # type 1~6 (일반 게임)
-                return PlayerProgressState.IN_PROGRESS
-        
-        elif state == GameState.ERROR:
-            if self.sound_manager.game_type == 7:  # 입장 화면
-                return PlayerProgressState.ENTER
-            elif self.sound_manager.game_type == 8:  # 퇴장 화면
-                return PlayerProgressState.EXIT
-            else:  # type 1~6 (일반 게임)
-                return PlayerProgressState.IN_PROGRESS
+
+        # TAG, ERROR 등의 상태는 게임 타입별 Strategy에서 결정
+        elif state in (GameState.TAG, GameState.ERROR):
+            strategy = GameTypeStrategyFactory.get_strategy(self.sound_manager.game_type)
+            return strategy.get_progress_state(state)
         else:
             return PlayerProgressState.IN_PROGRESS
 
@@ -199,9 +179,10 @@ class GameStateManager:
             self.state_change_callback(GameState.PLAYING)
 
         def play_timer():
-            remaining = 50  # 50초 제한
+            remaining = GameConfig.GAME_PLAY_TIMEOUT  # 게임 플레이 시간 제한
             while remaining > 0 and self.current_state == GameState.PLAYING and not self.game_blocked:
-                self.screen_update_callback(f"게임 진행 중...\n\n{remaining}")
+                base_message = message_loader.get_state_message('playing')
+                self.screen_update_callback(f"{base_message}\n\n{remaining}")
                 time.sleep(1)
                 remaining -= 1
             # 시간이 다 됐을 때 SCORE 상태로 전환
@@ -226,7 +207,7 @@ class GameStateManager:
             self.set_session_rfid(rfid)
         self._publish_state(self.current_state, score=score, rfid=self.session_rfid)
         self.sound_manager.play_bgm('score')  # play_sound -> play_bgm
-        self.screen_update_callback(f"당신의 점수는?\n\n{int(score)}점을\n획득했습니다!")
+        self.screen_update_callback(message_loader.get_state_message('score', score=int(score)))
         
         def score_timer():
             time.sleep(self.score_wait_time)  # Use the configured wait time
@@ -246,10 +227,10 @@ class GameStateManager:
             self.set_session_rfid(rfid)
         self._publish_state(self.current_state, score=score, rfid=self.session_rfid)
         self.sound_manager.play_bgm('result')  # play_sound -> play_bgm
-        self.screen_update_callback(f"{int(score)}점을\n획득했습니다!")
-        
+        self.screen_update_callback(message_loader.get_state_message('result', score=int(score)))
+
         def result_timer():
-            time.sleep(3)  # 3초 대기
+            time.sleep(GameConfig.RESULT_DISPLAY_WAIT)  # 결과 표시 대기
             if self.current_state == GameState.RESULT:
                 self.show_waiting()
         
@@ -275,23 +256,21 @@ class GameStateManager:
         self.timer_thread = None
         self.sound_manager.stop_bgm()
 
-        if self.sound_manager.game_type == 7:
-            # 입장
-            self.screen_update_callback("환영합니다!\n태그를 해주세요!")
-        elif self.sound_manager.game_type == 8:
-            # 퇴장
-            self.screen_update_callback("수고하셨습니다!\n태그를 해주세요!")
-        else:
-            # 게임
-            game_title = GameStateManager.get_game_name(self.sound_manager.game_type)
-            self.screen_update_callback(f"{game_title}\n\n태그를 하면\n게임이 시작됩니다!")
+        # message_loader를 사용하여 메시지 표시
+        self.screen_update_callback(
+            message_loader.get_state_message(
+                'waiting',
+                game_type=self.sound_manager.game_type,
+                game_title=GameStateManager.get_game_name(self.sound_manager.game_type)
+            )
+        )
 
     def show_init(self):
         """초기화 상태 표시"""
         self.current_state = GameState.INIT
         self._publish_state(self.current_state)
         self.sound_manager.play_bgm_loop('waiting')  # play_sound_loop -> play_bgm_loop
-        self.screen_update_callback("시스템 초기화 중...")
+        self.screen_update_callback(message_loader.get_state_message('init'))
 
     def show_enter(self, publish_state=True):
         """입장 상태 표시"""
@@ -302,8 +281,8 @@ class GameStateManager:
         if publish_state:
             self._publish_state(self.current_state)
 
-        self.sound_manager.play_bgm_loop('enter') 
-        self.screen_update_callback("환영합니다!\n태그를 해주세요!")
+        self.sound_manager.play_bgm_loop('enter')
+        self.screen_update_callback(message_loader.get_state_message('enter', game_type=self.sound_manager.game_type))
 
     def show_exit(self, publish_state=True):
         """퇴장 상태 표시"""
@@ -315,7 +294,7 @@ class GameStateManager:
             self._publish_state(self.current_state)
 
         self.sound_manager.play_bgm_loop('exit')  # exit.wav 또는 exit.mp3 필요
-        self.screen_update_callback("수고하셨습니다!\n태그를 해주세요!")
+        self.screen_update_callback(message_loader.get_state_message('exit', game_type=self.sound_manager.game_type))
 
     def show_error(self, error_type: str, error_message: str, recovery_state: str = None):
         """에러 처리 및 이전 상태로 복구"""
@@ -335,9 +314,9 @@ class GameStateManager:
         # 에러 메시지 표시
         self.screen_update_callback(f"{error_message}")
 
-        # 이전 상태로 복구 
+        # 이전 상태로 복구
         def auto_recover():
-            time.sleep(2.5) 
+            time.sleep(GameConfig.ERROR_AUTO_RECOVERY_DELAY) 
             if self.current_state == GameState.ERROR:
                 print(f"[ERROR] Auto recovery: ERROR → {previous_state}")
 
@@ -356,33 +335,39 @@ class GameStateManager:
         self.error_thread.start()
 
     def restore_state_display(self):
-        """원래 상태 표시로 복구"""
+        """원래 상태 표시로 복구 (message_loader 사용)"""
         if self.current_state == GameState.ERROR:
-        # 현재 상태가 ERROR면 직전 기본 화면으로 정리
-            if self.sound_manager.game_type == 7:
-                self.screen_update_callback("환영합니다!\n태그를 해주세요!")
-            elif self.sound_manager.game_type == 8:
-                self.screen_update_callback("수고하셨습니다!\n태그를 해주세요!")
-            else:
-                game_title = GameStateManager.get_game_name(self.sound_manager.game_type)
-                self.screen_update_callback(f"{game_title}\n\n태그를 하면\n게임이 시작됩니다!")
+            # 현재 상태가 ERROR면 직전 기본 화면으로 정리
+            self.screen_update_callback(
+                message_loader.get_state_message(
+                    'waiting',
+                    game_type=self.sound_manager.game_type,
+                    game_title=GameStateManager.get_game_name(self.sound_manager.game_type)
+                )
+            )
             return
+
         # 현재 상태에 맞는 기본 메시지로 복구
         if self.current_state == GameState.WAITING:
-            game_title = GameStateManager.get_game_name(self.sound_manager.game_type)
-            self.screen_update_callback(f"{game_title}\n\n태그를 하면\n게임이 시작됩니다!")
+            self.screen_update_callback(
+                message_loader.get_state_message(
+                    'waiting',
+                    game_type=self.sound_manager.game_type,
+                    game_title=GameStateManager.get_game_name(self.sound_manager.game_type)
+                )
+            )
         elif self.current_state == GameState.PLAYING:
-            self.screen_update_callback("게임 진행 중...")
+            self.screen_update_callback(message_loader.get_state_message('playing'))
         elif self.current_state == GameState.ENTER:
-            self.screen_update_callback("게임을 시작해주세요!")
+            self.screen_update_callback(message_loader.get_state_message('enter', game_type=self.sound_manager.game_type))
         elif self.current_state == GameState.EXIT:
-            self.screen_update_callback("수고하셨습니다!\n태그를 해주세요!")
+            self.screen_update_callback(message_loader.get_state_message('exit', game_type=self.sound_manager.game_type))
         elif self.current_state == GameState.SCORE:
             s = int(self.last_score or 0)
-            self.screen_update_callback(f"당신의 점수는?\n\n{s}점을\n획득했습니다!")
+            self.screen_update_callback(message_loader.get_state_message('score', score=s))
         elif self.current_state == GameState.RESULT:
             s = int(self.last_score or 0)
-            self.screen_update_callback(f"{s}점을\n획득했습니다!")
+            self.screen_update_callback(message_loader.get_state_message('result', score=s))
 
     def recover_from_error(self):
         """에러 상태에서 WAITING으로 수동 복구"""
