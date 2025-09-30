@@ -48,11 +48,6 @@ class SerialHandler:
                     
                     if connected_count > 0:
                         self.is_connected = True
-
-                        # 연결된 모든 포트를 즉시 리셋 & 재연결
-                        for dev in list(self.serial_ports.keys()):
-                            self.reset_and_reconnect_port(dev)
-
                         return
                     
                     print("No suitable serial ports found, retrying...")
