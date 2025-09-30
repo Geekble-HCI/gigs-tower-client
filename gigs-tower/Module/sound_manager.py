@@ -64,12 +64,10 @@ class SoundManager:
         # SFX 사운드 
         self.sfx_sounds: Dict[str, Optional[pygame.mixer.Sound]] = {
             'get': self._load_sound(snd('get_big.wav')),
-            # TODO: 사운드 추가 필요
-            'tag_success': self._load_sound(snd('tag_success.wav')),        # 등록된 플레이어
-            'tag_pending': self._load_sound(snd('tag_pending.wav')),        # 미등록 플레이어
-            'player_enter': self._load_sound(snd('player_enter.wav')),      # 플레이어 입장
-            'player_exit': self._load_sound(snd('player_exit.wav')),        # 플레이어 퇴장
-            'game_progress': self._load_sound(snd('game_progress.wav')),    # 게임 진행
+            'tag_start': self._load_sound(snd('tag_enter.wav')),        # 태그 입장
+            'tag_game': self._load_sound(snd('tag_game.wav')),        # 태그 게임 중
+            'tag_end': self._load_sound(snd('tag_exit2.wav')),      # 태그 퇴장
+            'tag_error': self._load_sound(snd('tag_error.wav')),        # 태그 에러
         }
 
         self._apply_bgm_volume()

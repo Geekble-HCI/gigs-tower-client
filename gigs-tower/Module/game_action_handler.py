@@ -4,6 +4,7 @@ from .events import GameEvent, EventType, InputSource
 from .game_state import GameState, GameStateManager
 from .error_type import ErrorType
 
+# TODO: 리펙토링
 class GameActionHandler:
     """
     Serial / Keyboard / GameCommand에서 들어오는 이벤트를
@@ -42,7 +43,7 @@ class GameActionHandler:
         #  # 중복 태그 방지
         if rfid == self.gsm.session_rfid and current not in [GameState.PLAYING, GameState.SCORE]:
             self.gsm.screen_update_callback(f"이미 처리가 되었습니다.\n(RFID: {rfid})")
-            self.gsm.sound_manager.play_sfx('get') # TODO: 사운드 변경
+            self.gsm.sound_manager.play_sfx('tag_error')
             import threading
             threading.Timer(1.5, self.gsm.restore_state_display).start()
             print(f"[Action] Duplicate RFID '{rfid}' ignored in state {current}")
@@ -57,9 +58,11 @@ class GameActionHandler:
         if error_result:
             # 네트워크 에러인 경우 특별 처리
             if error_result.get('network_error'):
+                self.gsm.sound_manager.play_sfx('tag_error')
                 error_type = ErrorType.NETWORK_ERROR
                 error_message = f"서버 연결 실패\n{error_result['error_message']}\n잠시 후 다시 시도해주세요."
             else:
+                self.gsm.sound_manager.play_sfx('tag_error')
                 error_type = error_result['type']
                 error_message = error_result['message']
 
@@ -360,7 +363,7 @@ class GameActionHandler:
 
     def _handle_enter_success(self, rfid: str, nickname: str = None):
         """입장 처리 성공 시 실행 (서버에서 받은 nickname 사용)"""
-        self.gsm.sound_manager.play_sfx('get')
+        self.gsm.sound_manager.play_sfx('tag_start')
         temp_message = f"플레이어 입장\n\n안녕하세요!\n(RFID: {rfid})"
         self.gsm.screen_update_callback(temp_message)
         import threading
@@ -369,7 +372,7 @@ class GameActionHandler:
 
     def _handle_exit_success(self, rfid: str, recieve_data: str = None):
         """퇴장 처리 성공 시 실행 (서버에서 받은 nickname 사용)"""
-        self.gsm.sound_manager.play_sfx('get')
+        self.gsm.sound_manager.play_sfx('tag_end')
 
         print(f"[Action] Player EXIT: recieve data'{recieve_data}')")
         display_name = recieve_data.get('nickname', f"Player_{rfid[-4:]}") if recieve_data else f"Player_{rfid[-4:]}"
@@ -382,6 +385,8 @@ class GameActionHandler:
 
     def _handle_waiting_success(self, rfid: str,  nickname: str | None = None):
         """대기 상태 처리 성공 시 실행"""
+        self.gsm.sound_manager.play_sfx('tag_game')
+
         if getattr(self.gsm, 'game_blocked', False):
             print("[Action] Game is blocked due to error - countdown cancelled")
             return
