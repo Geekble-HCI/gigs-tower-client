@@ -63,6 +63,9 @@ class GIGS:
         self.game_state.device_id = client.device_id if client else "unknown_client"
         self.game_state.device_ip = client.ip_address if client else "unknown_ip"
 
+        # Serial Handler를 GameStateManager에 "사후 주입"
+        # self.game_state.serial_handler = self.serial_handler
+
         # MQTTManager에 GameStateManager 연결 (에러 메시지 처리를 위해 필요)
         self.mqtt_manager.set_game_state_manager(self.game_state)
 
@@ -152,10 +155,13 @@ class GIGS:
         if new_state == GameState.PLAYING:
             self.serial_handler.send_message('-2')
             self.score_manager.reset_score()
-        elif new_state == GameState.SCORE:
+        elif new_state in [GameState.PLAYING, GameState.SCORE]:
             self.serial_handler.send_message('-3')
             final_score = int(self.score_manager.get_total_score())
             self.game_state.show_score(final_score)
+
+            self.serial_handler.send_message('-4') # waiting으로 전환 전 -4 신호 전송
+
 
     def run(self):
         self.wait_for_connections()
