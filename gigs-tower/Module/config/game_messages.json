@@ -21,7 +21,7 @@
     "result": "{score}점을\n획득했습니다!",
     "init": "시스템 초기화 중...",
     "enter": "환영합니다!\n태그를 해주세요!",
-    "exit": "수고하셨습니다!\n태그를 해 점수를 확인하세요!"
+    "exit": "수고하셨습니다!\n\n태그하여 점수를 확인하세요!"
   },
   "error_messages": {
     "PLAYER_DUPLICATE_ENTER": "이미 입장한 플레이어입니다.\n(중복 입장이 불가능합니다.)\n\n게임을 시작해주세요!",
@@ -36,6 +36,6 @@
   },
   "success_messages": {
     "enter": "플레이어 입장\n\n안녕하세요!\n(RFID: {rfid})",
-    "exit": "게임 종료!\n\n총 점수\n{nickname}님: {score}\n(RFID: {rfid})"
+    "exit": "게임 종료!\n\n{nickname}님\n총 점수: {total_score}점\n\n(RFID: {rfid})"
   }
 }

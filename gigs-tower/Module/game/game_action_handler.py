@@ -1,11 +1,13 @@
+import json
 import time
 from datetime import datetime
+from typing import Any, Mapping
 from .events import GameEvent, EventType, InputSource
 from .game_state import GameState, GameStateManager
 from .error_type import ErrorType
 from .game_type_strategy import GameTypeStrategyFactory
 from Module.config.game_config import GameConfig
-from Module.config.message_loader import message_loader
+from Module.config.message_loader import MessageLoader, message_loader
 
 class GameActionHandler:
     """
@@ -19,7 +21,7 @@ class GameActionHandler:
     def on_rfid_detected(self, ev: GameEvent):
         current = self.gsm.current_state
         rfid = ev.raw
-        print(f"[Action][TRACE] ★★★ RFID '{rfid}' detected from {ev.source}, state={current} ★★★")
+        print(f"[Action][TRACE] RFID '{rfid}' detected from {ev.source}, state={current}")
         print(f"[Action][TRACE] Event details: {vars(ev)}")
         print(f"[Action][TRACE] Call stack info - This will help identify who called this function")
         import traceback
@@ -84,7 +86,7 @@ class GameActionHandler:
 
         # 화면 상태와 무관하게, game_type으로 처리 (Strategy 패턴 적용)
         strategy = GameTypeStrategyFactory.get_strategy(game_type)
-        strategy.handle_tag_success(self, rfid, nickname)
+        strategy.handle_tag_success(self, rfid, server_response or {'nickname': nickname})
 
         if current == GameState.PLAYING:
             print("[Action] PLAYING -> RESULT")
@@ -343,14 +345,50 @@ class GameActionHandler:
         threading.Timer(GameConfig.TAG_DUPLICATE_DELAY, lambda: self.gsm.show_enter()).start()
         print(f"[Action] Player Enter (RFID '{rfid}')")
 
-    def _handle_exit_success(self, rfid: str, recieve_data: str = None):
-        """퇴장 처리 성공 시 실행 (서버에서 받은 nickname 사용)"""
+    def _handle_exit_success(self, rfid: str, receive_data: Any = None):
+        """퇴장 처리 성공 시 실행 (서버에서 받은 nickname, score 사용)"""
         self.gsm.sound_manager.play_sfx('tag_end')
 
-        print(f"[Action] Player EXIT: recieve data'{recieve_data}')")
-        display_name = recieve_data.get('nickname', f"Player_{rfid[-4:]}") if recieve_data else f"Player_{rfid[-4:]}"
-        print(f"{display_name}")
-        temp_message = message_loader.get_success_message('exit', nickname=display_name, rfid=rfid)
+        try:
+            peek = receive_data if isinstance(receive_data, str) else repr(receive_data)
+            print(f"[Action] Player EXIT: receive data peek='{peek[:160]}{'...' if len(peek)>160 else ''}'")
+        except Exception:
+            print(f"[Action] Player EXIT: receive data (unprintable)")
+
+        if isinstance(receive_data, str):
+            # 닉네임만 문자열로 온 경우 → 직전에 저장된 서버 응답에서 점수 보강
+            sr = getattr(self, '_server_response', {}) or {}
+            # _server_response에 total_score가 있거나 player_info.totalScore에 있을 수 있음
+            inferred_score = (
+                sr.get('total_score')
+                or ((sr.get('player_info') or {}).get('totalScore'))
+                or ((sr.get('player_info') or {}).get('total_score'))
+            )
+            data = {"nickname": receive_data}
+            if inferred_score is not None:
+                data['total_score'] = inferred_score
+        else:
+            data = MessageLoader.to_dict(receive_data)
+            # 서버가 totalScore로 주는 경우 대비
+            if 'total_score' not in data and 'totalScore' in data:
+                data['total_score'] = data['totalScore']
+
+        # totalScore/total_score 모두 지원
+        display_name = (data.get('nickname') or f"Player_{rfid[-4:]}")
+        try:
+            raw_score = data.get('total_score', data.get('totalScore', 0))
+            display_score = int(raw_score or 0)
+        except (TypeError, ValueError):
+            display_score = 0
+
+        print(f"[Action] EXIT resolved → Nickname: {display_name}, Score: {display_score}")
+        temp_message = message_loader.get_success_message(
+            'exit',
+            nickname=display_name,
+            total_score=display_score,
+            rfid=rfid
+        )
+
         self.gsm.screen_update_callback(temp_message)
         import threading
         threading.Timer(GameConfig.TAG_DUPLICATE_DELAY, lambda: self.gsm.show_exit()).start()

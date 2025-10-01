@@ -1,13 +1,38 @@
 """게임 메시지 로더"""
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Mapping
 
 class MessageLoader:
     """게임 메시지 로더 (JSON 기반)"""
 
     _instance = None
     _messages: Dict[str, Any] = {}
+
+    @staticmethod
+    def to_dict(payload: Any) -> dict:
+        """bytes / str(JSON) / dict / None → dict 로 정규화"""
+        if payload is None:
+            return {}
+        if isinstance(payload, Mapping):
+            return dict(payload)
+        if isinstance(payload, (bytes, bytearray)):
+            try:
+                return json.loads(payload.decode("utf-8", errors="ignore"))
+            except Exception:
+                return {}
+        if isinstance(payload, str):
+            s = payload.strip()
+            try:
+                return json.loads(s)
+            except Exception:
+                # key=value, key2=value2 형태가 올 가능성까지 최소 방어(선택)
+                try:
+                    parts = [p.strip() for p in s.split(",")]
+                    return dict(p.split("=", 1) for p in parts if "=" in p)
+                except Exception:
+                    return {}
+        return {}
 
     def __new__(cls):
         if cls._instance is None:
@@ -75,6 +100,8 @@ class MessageLoader:
             return template.format(**kwargs)
         except KeyError:
             return template
+    
+    
 
 # 싱글톤 인스턴스
 message_loader = MessageLoader()

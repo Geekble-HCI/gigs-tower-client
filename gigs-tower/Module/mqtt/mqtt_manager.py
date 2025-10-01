@@ -4,6 +4,7 @@ from Module.game.game_state import GameStateManager
 from .mqtt_scanner import MqttBrokerScanner
 from .mqtt_client import MQTTClient
 from Module.command.command_handler import CommandDispatcher, CommandType, GameCommand, MuteCommand, PingCommand, VolumeCommand
+from Module.config.message_loader import MessageLoader, message_loader
 
 
 class MQTTManager:
@@ -137,21 +138,26 @@ class MQTTManager:
         try:
             print(f"[MQTT][ACK-DEBUG] Full payload structure: {payload}")
 
-            # payload.data에서 실제 응답 데이터 추출
-            ack_data = payload.get('data', {})
+            
+            ack_data = MessageLoader.to_dict(payload.get('data'))
             print(f"[MQTT][ACK-DEBUG] ack_data: {ack_data}")
 
-            # 실제 데이터 구조에 맞게 nickname 추출: data.data.nickname
-            data_payload = ack_data.get('data', {})
-            nickname = data_payload.get('nickname', '')
+            # 실제 데이터 구조에 맞게 nickname, totalScore 추출: data.data.nickname, data.data.totalScore
+            data_payload = MessageLoader.to_dict(ack_data.get('data'))
+            nickname = data_payload.get('nickname') or ''
+            try:
+                total_score = int(data_payload.get('totalScore', 0) or 0)
+            except (TypeError, ValueError):
+                total_score = 0
 
-            print(f"[MQTT] ACK received with nickname: {nickname}")
+            print(f"[MQTT] ACK received with nickname: {nickname}, totalScore: {total_score}")
 
             # GameActionHandler에 정상 응답 전달
             if hasattr(self, 'action_handler'):
                 response_data = {
                     'success': True,
                     'nickname': nickname,
+                    'total_score': total_score,
                     'player_info': data_payload,
                     # 정상 응답이므로 모든 에러 플래그는 False
                     'duplicate_player': False,
@@ -160,7 +166,7 @@ class MQTTManager:
                 }
 
                 # correlationId 추출 - 여러 경로에서 시도
-                correlation_id = ack_data.get('correlationId', payload.get('correlationId', ''))
+                correlation_id = ack_data.get('correlationId') or payload.get('correlationId') or ''
                 print(f"[MQTT][ACK-DEBUG] Extracted correlationId: '{correlation_id}'")
                 print(f"[MQTT][ACK-DEBUG] Available keys in ack_data: {list(ack_data.keys())}")
                 print(f"[MQTT][ACK-DEBUG] Available keys in payload: {list(payload.keys())}")
@@ -181,13 +187,16 @@ class MQTTManager:
     def _handle_mqtt_message(self, topic, payload):
         """MQTT 메시지 통합 처리 (수정)"""
         try:
+            # dict로 정규화 
+            payload = MessageLoader.to_dict(payload)
             if "command" in topic:
                 self._handle_mqtt_command(topic, payload)
             elif topic.endswith("/ack"):
                 print(f"[MQTT][ACK] {payload}")
                 self._handle_ack_message(payload)  # ACK 메시지도 처리
             elif topic.endswith("/err"):
-                print(f"[MQTT][ERR] {payload.get('message', 'Unknown error')}")
+                err_msg = (payload.get('data') or {}).get('message') or payload.get('message') or 'Unknown error'
+                print(f"[MQTT][ERR] {err_msg}")
                 self._handle_error_message(payload)
             else:
                 print(f"[MQTT] Unknown topic: {topic}, payload={payload}")
@@ -212,7 +221,7 @@ class MQTTManager:
             if not self.command_handler:
                 print("[MQTT] No command handler available")
                 return
-            data = payload.get("data") or {}
+            data = MessageLoader.to_dict(payload.get("data"))
             command = data.get("command")
             value = data.get("value")
             ts = data.get("timestamp")
@@ -229,9 +238,9 @@ class MQTTManager:
 
     def _handle_error_message(self, payload):
         try:
-            error_data = payload.get('data', {})
+            error_data = MessageLoader.to_dict(payload.get('data', {}))
             error_code = error_data.get('code')
-            error_message = error_data.get('message', 'Unknown error')
+            error_message = error_data.get('message') or payload.get('message') or 'Unknown error'
             print(f"[MQTT] Error received: {error_code} - {error_message}")
 
             if hasattr(self, 'action_handler'):
@@ -243,7 +252,7 @@ class MQTTManager:
                     'player_not_found': error_code in ['PLAYER_NOT_FOUND_GAME','PLAYER_NOT_FOUND_EXIT'],
                     'duplicate_game': error_code == 'GAME_DUPLICATE_EXECUTION',
                 }
-                correlation_id = error_data.get('correlationId', payload.get('correlationId', ''))
+                correlation_id = error_data.get('correlationId') or payload.get('correlationId') or ''
                 if hasattr(self.action_handler, '_handle_server_response') and correlation_id:
                     print(f"[MQTT] Calling _handle_server_response for ERROR with correlationId: {correlation_id}")
                     self.action_handler._handle_server_response(response_data, correlation_id)
