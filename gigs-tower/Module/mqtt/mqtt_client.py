@@ -9,6 +9,17 @@ from paho.mqtt.packettypes import PacketTypes
 import json
 from Module.utils.local_ip_resolver import LocalIpResolver
 
+# 사전 TCP 프로빙 유틸
+@staticmethod
+def _tcp_probe(host: str, port: int, timeout: float = 1.5) -> bool:
+    import socket
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+
 class MQTTClient:
     """초기 연결을 보장하고, 연결 이후에만 publish되도록 하는 래퍼"""
 
@@ -85,22 +96,42 @@ class MQTTClient:
 
         attempt = 0
         while True:
+            # 사전 TCP 프로빙: 죽은 IP에 즉시 실패
+            if not _tcp_probe(self.broker_address, self.port, timeout=min(1.5, per_attempt_timeout)):
+                print(f"[MQTT] TCP probe failed: {self.broker_address}:{self.port}")
+                # 백오프 후 재시도
+                if attempt >= max_retries:
+                    print("[MQTT] Initial connection failed: Retry limit exceeded")
+                    return False
+                delay = min(max_backoff, base_backoff * (2 ** attempt))
+                time.sleep(delay)
+                attempt += 1
+                continue
+
             try:
                 print(f"[MQTT] connect attempt #{attempt+1} → {self.broker_address}:{self.port}")
                 self._conn_event.clear()
-                self.client.connect(
+                # 비동기 연결
+                self.client.connect_async(
                     self.broker_address,
                     self.port,
                     keepalive,
-                    clean_start=mqtt.MQTT_CLEAN_START_FIRST_ONLY,  # 첫 연결만 clean, 이후엔 세션 유지
+                    clean_start=mqtt.MQTT_CLEAN_START_FIRST_ONLY,
                     properties=self.conn_props
                 )
             except Exception as e:
                 print(f"[MQTT] socket connection exception: {e}")
-
+            
+            # 타입박스 대기
             if self._conn_event.wait(timeout=per_attempt_timeout) and self.is_connected:
                 print("[MQTT] Initial connection established")
                 return True
+
+            # 타임아웃: 강제 정리 후 백오프
+            try:
+                self.client.disconnect()
+            except Exception:
+                pass
 
             if attempt >= max_retries:
                 print("[MQTT] Initial connection failed: Retry limit exceeded")
@@ -170,24 +201,30 @@ class MQTTClient:
 
     # -------- 내부 콜백 --------
     def _on_connect_v5(self, client, userdata, flags, reason_code, properties):
-        """연결 성공/실패 콜백 (MQTT v5)"""
-        if reason_code == mqtt.MQTT_ERR_SUCCESS or int(reason_code) == 0:
+        # 안전한 값/이름 추출(로깅용)
+        rc_val = getattr(reason_code, "value", reason_code)
+        rc_name = getattr(reason_code, "name", str(reason_code))
+
+        # ReasonCode는 정수와 직접 비교 가능 (int() 캐스팅 금지)
+        if reason_code == 0:  # 또는: if rc_name.upper() == "SUCCESS":
             self.is_connected = True
-            print(f"[MQTT] Connected to {self.broker_address}:{self.port} (reason_code={reason_code})")
-        
+            print(f"[MQTT] Connected to {self.broker_address}:{self.port} (rc={rc_val}/{rc_name})")
+
             for topic, qos in self.subscriptions:
                 self.subscribe(topic, qos)
-            self._conn_event.set()
         else:
-            print(f"[MQTT] Failed to connect: reason_code={reason_code}")
-            # 연결 실패 시에도 wait()가 깨어날 수 있게 이벤트 set (재시도 루프로)
-            self._conn_event.set()
+            reason_str = getattr(properties, "ReasonString", None) if properties else None
+            print(f"[MQTT] Failed to connect: rc={int(reason_code)}, reason='{reason_str}'")
+        
+        # 성공/실패 모두 대기 해제
+        self._conn_event.set()
 
     def _on_disconnect_v5(self, client, userdata, disconnect_flags, reason_code, properties):
         self.is_connected = False
+        rc_val = getattr(reason_code, "value", reason_code)
+        rc_name = getattr(reason_code, "name", str(reason_code))
         reason_str = getattr(properties, "ReasonString", None) if properties else None
-        print(f"[MQTT] Disconnected rc={int(reason_code) if reason_code is not None else None}, "
-            f"flags={disconnect_flags}, reason='{reason_str}'")
+        print(f"[MQTT] Disconnected rc={rc_val}/{rc_name}, flags={disconnect_flags}, reason='{reason_str}'")
     
     def _on_publish(self, client, userdata, mid, reason_code, properties):
         print(f"[MQTT] Publish successful: mid={mid}, reason={getattr(reason_code, 'name', reason_code)}")

@@ -9,6 +9,9 @@ from Module.utils.net_utils import (
     udp_guess_local_ip,
 )
 
+CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".cache")
+DEFAULT_CACHE = os.path.join(CACHE_DIR, "last_broker_ip.txt")
+
 class MqttBrokerScanner:
     """
     - Wi-Fi 대역을 '먼저' 스캔 (preferred_ifaces 연동)
@@ -21,7 +24,7 @@ class MqttBrokerScanner:
         timeout=0.6,
         max_threads=50,
         preferred_ifaces=None,
-        cache_file: str = "last_broker_ip.txt",
+        cache_file: str = DEFAULT_CACHE,
 
         # TLS/계정 인증(필요 시)
         ca_certs=None, certfile=None, keyfile=None, tls_insecure=False,
@@ -140,14 +143,20 @@ class MqttBrokerScanner:
 
             # 나머지 병렬 스캔
             ip_list = [f"{base}{i}" for i in range(start, end + 1)]
-            with ThreadPoolExecutor(max_workers=self.max_threads) as ex:
-                futs = {ex.submit(self._is_broker_alive, ip): ip for ip in ip_list}
+            executor = ThreadPoolExecutor(max_workers=self.max_threads)
+            try:
+                futs = {executor.submit(self._is_broker_alive, ip): ip for ip in ip_list}
                 for fut in as_completed(futs):
                     res = fut.result()
                     if res:
                         print(f"[SCANNER] Broker found: {res}:{self.port}")
                         self._save_cached_ip(res)
+                        # 나머지 작업 즉시 취소 
+                        executor.shutdown(wait=False, cancel_futures=True)
                         return res
+            finally:
+                # 성공하지 못한 경우, 정상 종료 대기
+                executor.shutdown(wait=False)
 
         print("[SCANNER] No broker found.")
         return None

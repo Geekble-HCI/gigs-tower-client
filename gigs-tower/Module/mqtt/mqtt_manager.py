@@ -193,26 +193,6 @@ class MQTTManager:
                 print(f"[MQTT] Unknown topic: {topic}, payload={payload}")
         except Exception as e:
             print(f"[MQTT] Message processing error: {e}")
-
-    def _handle_mqtt_command(self, topic, payload):
-        """장치 명령 메시지 처리"""
-        try:
-            if not self.command_handler:
-                print("[MQTT] No command handler available")
-                return
-            data = payload.get("data") or {}
-            command = data.get("command")
-            value = data.get("value")
-            ts = data.get("timestamp")
-            device_id = data.get("deviceId")
-
-            print(f"[MQTT] args: {command}, {value}, {ts}, {device_id}")
-
-            success = self.command_handler.dispatch(command, value, ts, device_id)
-            if not success:
-                print(f"[MQTT] Command processing failed for topic: {topic}")
-        except Exception as e:
-            print(f"[MQTT] Error in command handling: {e}")
     
     def is_connected(self):
         """MQTT 연결 상태 확인"""
