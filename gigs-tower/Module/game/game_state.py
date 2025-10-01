@@ -202,6 +202,8 @@ class GameStateManager:
 
     def show_score(self, score: int | float, rfid: str | None = None):
         self.current_state = GameState.SCORE
+        if self.state_change_callback:
+            self.state_change_callback(GameState.SCORE)
         self.last_score = score
         if rfid:
             self.set_session_rfid(rfid)
@@ -213,6 +215,7 @@ class GameStateManager:
             time.sleep(self.score_wait_time)  # Use the configured wait time
             if self.current_state == GameState.SCORE:  # 여전히 SCORE 상태라면
                 self.show_waiting()  # WAITING 상태로 전환
+                self.state_change_callback(GameState.WAITING)
         
         # 이전 타이머가 있다면 정리
         if self.score_thread and self.score_thread.is_alive():

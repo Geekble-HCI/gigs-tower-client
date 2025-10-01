@@ -155,11 +155,9 @@ class GIGS:
         if new_state == GameState.PLAYING:
             self.serial_handler.send_message('-2')
             self.score_manager.reset_score()
-        elif new_state in [GameState.PLAYING, GameState.SCORE]:
+        elif new_state == GameState.SCORE:
             self.serial_handler.send_message('-3')
-            final_score = int(self.score_manager.get_total_score())
-            self.game_state.show_score(final_score)
-
+        elif new_state == GameState.WAITING:
             self.serial_handler.send_message('-4') # waiting으로 전환 전 -4 신호 전송
 
 
