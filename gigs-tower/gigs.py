@@ -8,9 +8,9 @@ from Module.interface.score_manager import ScoreManager
 from Module.interface.input_handler import InputHandler
 from Module.mqtt.mqtt_manager import MQTTManager
 
-# 👇 추가
 from Module.game.game_action_handler import GameActionHandler
 from Module.game.events import EventType
+from Module.config.game_config import GameConfig
 
 # 경로 헬퍼 import
 import paths
@@ -20,7 +20,7 @@ class GIGS:
     # 초기화 관련 메서드들
     # ============================================================================
     def __init__(self, game_type=1, show_enter=False, show_exit=False,
-                 score_wait_time=15, countdown_time=10, mqtt_broker=None, device_id=None,
+                 score_wait_time=GameConfig.SCORE_DISPLAY_WAIT, countdown_time=GameConfig.COUNTDOWN_TIME, mqtt_broker=None, device_id=None,
                  test_mode=False):
         pygame.init()
 

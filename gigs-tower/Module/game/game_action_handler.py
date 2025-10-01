@@ -34,7 +34,7 @@ class GameActionHandler:
             return
         
         # 게임 실행 중 태그 차단
-        if current in [GameState.PLAYING, GameState.COUNTDOWN]:
+        if current in [GameState.PLAYING, GameState.COUNTDOWN, GameState.SCORE, GameState.RESULT]:
             self.gsm.screen_update_callback(message_loader.get_error_message('TAG_BLOCKED'))
             import threading
             threading.Timer(1, self.gsm.restore_state_display).start()
@@ -157,6 +157,7 @@ class GameActionHandler:
 
         if current_state == GameState.WAITING:
             self.gsm.countdown_time = GameConfig.MASTER_COUNTDOWN_TIME      # 짧은 카운트다운
+            self.gsm.session_nickname = f"Master({rfid}) "
             ev = GameEvent(kind=EventType.GAME_START, source=InputSource.SERIAL, raw=rfid)
             self.on_command(ev)
 

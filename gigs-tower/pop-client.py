@@ -1,5 +1,6 @@
 import argparse
 from gigs import GIGS
+from Module.config.game_config import GameConfig
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Samyang Pop Game Client')
@@ -13,8 +14,8 @@ def parse_arguments():
     6: Robot Basketball''')
     parser.add_argument('--enter', action='store_true', help='Show enter screen')
     parser.add_argument('--exit', action='store_true', help='Show exit screen')
-    parser.add_argument('--score-wait-time', type=int, default=15, help='Wait time for the score screen (default: 15 seconds)')
-    parser.add_argument('--countdown-time', type=int, default=10, help='Countdown time for the game start (default: 10 seconds)')
+    parser.add_argument('--score-wait-time', type=int, default=GameConfig.SCORE_DISPLAY_WAIT, help='Wait time for the score screen (default: 15 seconds)')
+    parser.add_argument('--countdown-time', type=int, default=GameConfig.COUNTDOWN_TIME, help='Countdown time for the game start (default: 10 seconds)')
     parser.add_argument('--mqtt-broker', type=str, default=None, help='MQTT broker address')
     parser.add_argument('--device_id', type=str, default=None, help='MQTT client ID (optional, auto-generated from type if not specified)')
     parser.add_argument('--test', action='store_true', help='Enable input handler test mode')

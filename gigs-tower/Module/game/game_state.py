@@ -25,7 +25,7 @@ class PlayerProgressState:
     EXIT = "EXIT"
 
 class GameStateManager:
-    def __init__(self, screen_update_callback, state_change_callback=None, game_type=1, score_wait_time=3, countdown_time=10, mqtt_client=None, score_provider=None):
+    def __init__(self, screen_update_callback, state_change_callback=None, game_type=1, score_wait_time=5, countdown_time=10, mqtt_client=None, score_provider=None):
         self.current_state = GameState.INIT  # 초기 상태를 INIT으로 변경
         self.countdown = 10
         self.timer_thread = None
@@ -35,7 +35,7 @@ class GameStateManager:
         self.score_thread = None  # Add score timeout thread
         self.state_change_callback = state_change_callback  # 상태 변경 콜백 추가
         self.play_thread = None
-        self.score_wait_time = 3  # Store the wait time
+        self.score_wait_time = score_wait_time  # Store the wait time
         self.countdown_time = countdown_time  # 현재 카운트다운(동적으로 변경 가능)
         self.default_countdown_time = countdown_time  # 기본값 보관(복귀 시 사용)
         self.mqtt_client = mqtt_client # MQTT 클라이언트 저장
@@ -174,7 +174,6 @@ class GameStateManager:
             self.set_session_rfid(rfid)
         self._publish_state(self.current_state, rfid=self.session_rfid)
         self.sound_manager.play_bgm_loop('playing')  # play_sound_loop -> play_bgm_loop
-        self.screen_update_callback("게임 진행 중...")
         if self.state_change_callback:
             self.state_change_callback(GameState.PLAYING)
 
@@ -263,8 +262,8 @@ class GameStateManager:
         self.screen_update_callback(
             message_loader.get_state_message(
                 'waiting',
-                game_type=self.sound_manager.game_type,
-                game_title=GameStateManager.get_game_name(self.sound_manager.game_type)
+                game_type=self.game_type,
+                game_title=GameStateManager.get_game_name(self.game_type)
             )
         )
 
@@ -359,8 +358,6 @@ class GameStateManager:
                     game_title=GameStateManager.get_game_name(self.sound_manager.game_type)
                 )
             )
-        elif self.current_state == GameState.PLAYING:
-            self.screen_update_callback(message_loader.get_state_message('playing'))
         elif self.current_state == GameState.ENTER:
             self.screen_update_callback(message_loader.get_state_message('enter', game_type=self.sound_manager.game_type))
         elif self.current_state == GameState.EXIT:
