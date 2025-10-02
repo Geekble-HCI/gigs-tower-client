@@ -7,10 +7,10 @@ const int ECHO_1 = 3;
 const int TRIG_2 = 7;
 const int ECHO_2 = 2;
 
-const int DIST_THRESHOLD = 15;    // cm 이하일 때 감지로 판단
+const int DIST_THRESHOLD = 17;    // cm 이하일 때 감지로 판단
 const int DEAD_TIME = 500;        // ms, 중복 감지 방지 시간
 const int SENSOR_TIMEOUT = 30000; // us, pulseIn 타임아웃 (30ms = 약 5m 거리)
-const bool NOECHO_IS_HIT = true; // true → No echo도 감지 성공으로 간주, false → 실패로 간주
+const bool NOECHO_IS_HIT = false; // true → No echo도 감지 성공으로 간주, false → 실패로 간주
 
 // ---------------------------
 // 함수
