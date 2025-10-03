@@ -64,6 +64,7 @@ class SoundManager:
         # SFX 사운드 
         self.sfx_sounds: Dict[str, Optional[pygame.mixer.Sound]] = {
             'get': self._load_sound(snd('get_big.wav')),
+            'tag_master': self._load_sound(snd('tag_master.wav')),  # 마스터 태그
             'tag_start': self._load_sound(snd('tag_enter.wav')),        # 태그 입장
             'tag_game': self._load_sound(snd('tag_game.wav')),        # 태그 게임 중
             'tag_end': self._load_sound(snd('tag_exit2.wav')),      # 태그 퇴장

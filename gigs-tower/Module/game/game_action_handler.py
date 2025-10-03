@@ -150,6 +150,8 @@ class GameActionHandler:
     def _handle_master_card(self, rfid: str, current_state: str):
         """마스터키 특권으로 모든 예외 무시"""
 
+        self.gsm.sound_manager.play_sfx('tag_master')
+
         print(f"[MASTER] Master card detected: {rfid}")
 
         # 에러 상태 자동 클리어
