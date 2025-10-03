@@ -2,4 +2,3 @@
 from .mqtt_manager import *
 from .mqtt_client import *
 from .mqtt_scanner import *
-from .serial_handler import *

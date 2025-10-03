@@ -1,7 +1,7 @@
 import pygame
 from Module.game.game_handler import GameHandler
 from Module.interface.sound_manager import SoundManager
-from Module.mqtt.serial_handler import SerialHandler
+from Module.serial.serial_handler import SerialHandler
 from Module.game.game_state import GameState, GameStateManager
 from Module.interface.screen_manager import ScreenManager
 from Module.interface.score_manager import ScoreManager
