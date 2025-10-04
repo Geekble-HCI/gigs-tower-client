@@ -67,7 +67,7 @@ class SoundManager:
             'tag_master': self._load_sound(snd('tag_master.wav')),  # 마스터 태그
             'tag_start': self._load_sound(snd('tag_enter.wav')),        # 태그 입장
             'tag_game': self._load_sound(snd('tag_game.wav')),        # 태그 게임 중
-            'tag_end': self._load_sound(snd('tag_exit2.wav')),      # 태그 퇴장
+            'tag_end': self._load_sound(snd('tag_exit.wav')),      # 태그 퇴장
             'tag_error': self._load_sound(snd('tag_error_small.wav')),        # 태그 에러
         }
 
@@ -101,6 +101,12 @@ class SoundManager:
         if not snd:
             print(f"[SOUND][WARN] BGM not found: {name}")
             return
+        
+        # 이미 같은 BGM이 재생 중이면 건드리지 않음
+        if self.current_bgm is snd and self.bgm_channel.get_busy():
+            # 볼륨만 최신화하고 리턴 (필요 시)
+            self._apply_bgm_volume()
+            return
         # 현재 BGM 중지 후 교체
         self.bgm_channel.stop()
         self.current_bgm = snd
@@ -112,27 +118,20 @@ class SoundManager:
         if not snd:
             print(f"[SOUND][WARN] BGM not found: {name}")
             return
+        
+        # 이미 같은 BGM이 루프로 재생 중이면 재시작하지 않음
+        if self.current_bgm is snd and self.bgm_channel.get_busy():
+            self._apply_bgm_volume()
+            return
+        
         self.bgm_channel.stop()
         self.current_bgm = snd
         self._apply_bgm_volume()
         self.bgm_channel.play(snd, loops=-1)
 
-        # if self.current_bgm:
-        #     self.current_bgm.stop()
-        
-        # sound = self.bgm_sounds.get(sound_name)
-        # if sound:
-        #     self._apply_volume(sound)
-        #     sound.play(-1)
-        #     self.current_bgm = sound
-
     def stop_bgm(self) -> None:
         self.bgm_channel.stop()
         self.current_bgm = None
-    
-        # if self.current_bgm:
-        #     self.current_bgm.stop()
-        #     self.current_bgm = None
     
     def fadeout_bgm(self, ms: int = 200) -> None:
         """클릭/팝 노이즈 완화용 페이드아웃"""

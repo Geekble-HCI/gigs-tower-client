@@ -403,8 +403,6 @@ class GameActionHandler:
 
     def _handle_waiting_success(self, rfid: str,  nickname: str | None = None):
         """대기 상태 처리 성공 시 실행"""
-        self.gsm.sound_manager.play_sfx('tag_game')
-
         if getattr(self.gsm, 'game_blocked', False):
             print("[Action] Game is blocked due to error - countdown cancelled")
             return
