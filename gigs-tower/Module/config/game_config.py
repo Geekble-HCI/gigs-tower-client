@@ -17,6 +17,7 @@ class GameConfig:
     RESULT_DISPLAY_WAIT = 5             # 결과 화면 표시 시간
     TAG_DUPLICATE_DELAY = 1.5           # 중복 태그 방지 딜레이
     ERROR_AUTO_RECOVERY_DELAY = 2.5     # 에러 자동 복구 대기 시간
+    EXIT_SUCCESS_HOLD = 5               # 퇴장 성공 메시지 유지 시간
 
     # 서버 통신 설정
     SERVER_VALIDATION_TIMEOUT = 3.0     # 서버 검증 응답 대기 시간

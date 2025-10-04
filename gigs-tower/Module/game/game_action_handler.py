@@ -35,6 +35,10 @@ class GameActionHandler:
             self._handle_master_card(rfid, current)
             return
         
+        if self.gsm.is_ui_locked():
+            print("[Action] UI locked during exit-success hold; ignoring tag")
+            return
+        
         # 게임 실행 중 태그 차단
         if current in [GameState.PLAYING, GameState.COUNTDOWN, GameState.SCORE, GameState.RESULT]:
             self.gsm.screen_update_callback(message_loader.get_error_message('TAG_BLOCKED'))
@@ -393,8 +397,9 @@ class GameActionHandler:
 
         self.gsm.screen_update_callback(temp_message)
         import threading
-        threading.Timer(GameConfig.TAG_DUPLICATE_DELAY, lambda: self.gsm.show_exit()).start()
+        threading.Timer(GameConfig.EXIT_SUCCESS_HOLD, lambda: self.gsm.show_exit()).start()
         print(f"[Action] Player EXIT: {display_name} (RFID '{rfid}')")
+        self.gsm.lock_ui(GameConfig.EXIT_SUCCESS_HOLD)
 
     def _handle_waiting_success(self, rfid: str,  nickname: str | None = None):
         """대기 상태 처리 성공 시 실행"""

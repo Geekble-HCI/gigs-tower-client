@@ -380,4 +380,10 @@ class GameStateManager:
         self.game_blocked = False
         print("[GameState] Error cleared")
         self.show_waiting(publish_state=publish_state)
+    
+    def lock_ui(self, seconds: float):
+        self.ui_locked_until = time.monotonic() + seconds
+
+    def is_ui_locked(self) -> bool:
+        return getattr(self, "ui_locked_until", 0) > time.monotonic()
 
