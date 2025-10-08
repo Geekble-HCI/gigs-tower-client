@@ -57,6 +57,7 @@ class SerialHandler:
 
         self.setup_thread = threading.Thread(target=setup_worker, daemon=True)
         self.setup_thread.start()
+        print(f"[THREAD] setup_thread started (total active: {threading.active_count()})")
         return True
 
     def start_port_monitoring(self, port_device, port):
@@ -73,7 +74,9 @@ class SerialHandler:
                     break
                 time.sleep(0.1)
 
-        threading.Thread(target=port_monitor, daemon=True).start()
+        monitor_thread = threading.Thread(target=port_monitor, daemon=True, name=f"SerialMonitor-{port_device}")
+        monitor_thread.start()
+        print(f"[THREAD] port_monitor started for {port_device} (total active: {threading.active_count()})")
     
     # 시리얼 분기 -> 메서드 추출
     def _dispatch_serial_input(self, received_data: str):

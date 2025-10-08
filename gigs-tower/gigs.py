@@ -12,6 +12,11 @@ from Module.game.game_action_handler import GameActionHandler
 from Module.game.events import EventType
 from Module.config.game_config import GameConfig
 
+# 리소스 모니터링 및 로깅
+from Module.utils.resource_monitor import get_monitor
+from Module.utils.logger import Logger, LogLevel
+from Module.utils.log_filter import enable_log_filtering
+
 # 경로 헬퍼 import
 import paths
 
@@ -21,13 +26,31 @@ class GIGS:
     # ============================================================================
     def __init__(self, game_type=1, show_enter=False, show_exit=False,
                  score_wait_time=GameConfig.SCORE_DISPLAY_WAIT, countdown_time=GameConfig.COUNTDOWN_TIME, mqtt_broker=None, device_id=None,
-                 test_mode=False):
+                 test_mode=False, log_level=LogLevel.WARN, enable_monitor=True):
         pygame.init()
 
-        # 테스트 모드이면 countdown_time을 1초로
+        # 테스트 모드 확인
         self.test_mode = test_mode
+
+        # 로그 레벨 설정
         if self.test_mode:
+            # 테스트 모드: 모든 로그 출력 (DEBUG)
             countdown_time = 1
+            Logger.set_level(LogLevel.DEBUG)
+        else:
+            # 프로덕션 모드: 경고 이상만 출력 (WARN)
+            Logger.set_level(log_level)
+            # 전역 print() 필터링 활성화 (기존 코드 수정 없이 로그 감소)
+            enable_log_filtering()
+
+        # 리소스 모니터 시작 (테스트 모드에서만)
+        if enable_monitor and self.test_mode:
+            # 테스트 모드: 5분 간격 모니터링 활성화
+            self.monitor = get_monitor(log_interval=300, enable_logging=True)
+            self.monitor.start()
+        else:
+            # 프로덕션 모드: 모니터링 비활성화 (성능 최적화)
+            self.monitor = None
 
         # 기본 컴포넌트
         self.sound_manager = SoundManager(game_type)
@@ -90,6 +113,7 @@ class GIGS:
             print("[TEST MODE] Keyboard input enabled:")
             print("  - A: Mock RFID detected (8-char UID : QWER1234)")
             print("  - B: Mock Score +10")
+            print("  - T: Thread status check")
             print("  - ESC: Exit")
 
 

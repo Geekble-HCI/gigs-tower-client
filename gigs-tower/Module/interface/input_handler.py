@@ -1,5 +1,6 @@
 import pygame
 import sys
+import threading
 from Module.game.events import GameEvent, EventType, InputSource
 
 
@@ -10,6 +11,7 @@ class InputHandler:
         self._key_mappings = {
             pygame.K_a: self._handle_key_a,     # A키 → RFID Mock
             pygame.K_b: self._handle_key_b,     # B키 → 점수 10 Mock
+            pygame.K_t: self._handle_key_t,     # T키 → Thread 상태 확인
             pygame.K_ESCAPE: self._handle_escape,
         }
     
@@ -68,7 +70,34 @@ class InputHandler:
             )
             self._action.on_score_received(ev)
         return True
-  
+
+    def _handle_key_t(self):
+        """T 키 처리 → 쓰레드 상태 확인"""
+        if getattr(self._gigs, 'test_mode', False):
+            threads = threading.enumerate()
+            print(f"\n{'='*60}")
+            print(f"[THREAD CHECK] Active threads: {len(threads)}")
+            print(f"[THREAD CHECK] Current game state: {self._gigs.game_state.current_state}")
+            print(f"{'='*60}")
+
+            # 쓰레드별 상세 정보
+            for idx, t in enumerate(threads, 1):
+                daemon_str = "daemon" if t.daemon else "normal"
+                alive_str = "alive" if t.is_alive() else "dead"
+                print(f"  [{idx:2d}] {t.name:30s} | {daemon_str:6s} | {alive_str}")
+
+            print(f"{'='*60}\n")
+
+            # ResourceMonitor가 활성화된 경우 상세 정보도 출력
+            if hasattr(self._gigs, 'monitor') and self._gigs.monitor:
+                stats = self._gigs.monitor.get_current_stats()
+                print(f"[RESOURCE] Threads: {stats['threads']} ({stats['thread_delta']:+d} from start)")
+                if stats['memory_mb'] > 0:
+                    print(f"[RESOURCE] Memory: {stats['memory_mb']:.1f}MB ({stats['memory_delta_mb']:+.1f}MB from start)")
+                print(f"[RESOURCE] Uptime: {stats['uptime_hours']:.2f}h")
+                print(f"{'='*60}\n")
+        return True
+
     def _handle_escape(self):
         """ESC 키 처리 (게임 종료)"""
         if hasattr(self._gigs, 'test_mode') and self._gigs.test_mode:

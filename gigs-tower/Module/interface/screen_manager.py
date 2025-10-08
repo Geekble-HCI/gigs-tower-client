@@ -34,7 +34,7 @@ class ScreenManager:
             print("폰트 로드 실패, 기본 폰트 사용")
             self.font = pygame.font.Font(None, 30)
         
-        self.message_queue = queue.Queue()
+        self.message_queue = queue.Queue(maxsize=100)  # 최대 100개 메시지로 제한
 
     def draw_text(self, text):
         lines = text.split('\n')
@@ -64,7 +64,15 @@ class ScreenManager:
             self.draw_text(text)
             pygame.display.flip()
         else:
-            self.message_queue.put(text)
+            try:
+                self.message_queue.put(text, block=False)  # 큐 가득 차면 예외 발생
+            except queue.Full:
+                # 오래된 메시지 1개 버리고 새 메시지 추가
+                try:
+                    self.message_queue.get_nowait()
+                    self.message_queue.put(text, block=False)
+                except:
+                    pass  # 큐 조작 실패 시 무시
 
     def process_message_queue(self):
         try:
