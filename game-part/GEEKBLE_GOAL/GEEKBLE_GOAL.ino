@@ -8,7 +8,7 @@ const int TRIG_2 = 7;
 const int ECHO_2 = 2;
 
 const int DIST_THRESHOLD = 17;    // cm 이하일 때 감지로 판단
-const int DEAD_TIME = 500;        // ms, 중복 감지 방지 시간
+const int DEAD_TIME = 1200;       // ms, 중복 감지 방지 시간
 const int SENSOR_TIMEOUT = 30000; // us, pulseIn 타임아웃 (30ms = 약 5m 거리)
 const bool NOECHO_IS_HIT = false; // true → No echo도 감지 성공으로 간주, false → 실패로 간주
 
@@ -32,6 +32,15 @@ float sensing(int trig, int echo) {
 }
 
 // ---------------------------
+// 시리얼 버퍼 비우기
+// ---------------------------
+void flushSerialBuffer() {
+  while (Serial.available() > 0) {
+    Serial.read(); // 들어오는 데이터 읽고 버림
+  }
+}
+
+// ---------------------------
 // 아두이노 기본 구조
 // ---------------------------
 void setup() {
@@ -43,6 +52,9 @@ void setup() {
 }
 
 void loop() {
+  // 주기적으로 시리얼 버퍼 비우기
+  flushSerialBuffer();
+
   float d1 = sensing(TRIG_1, ECHO_1);
   delay(10); // 두 센서 신호 겹침 방지
   float d2 = sensing(TRIG_2, ECHO_2);
@@ -55,15 +67,6 @@ void loop() {
     Serial.println("10");
     delay(DEAD_TIME); // 중복 감지 방지
   }
-
-  // 디버그 출력
-  // Serial.print("Sensor1: ");
-  // if (d1 < 0) Serial.print("No echo");
-  // else Serial.print(d1);
-  // Serial.print(" cm | Sensor2: ");
-  // if (d2 < 0) Serial.print("No echo");
-  // else Serial.print(d2);
-  // Serial.println(" cm");
 
   delay(50);
 }

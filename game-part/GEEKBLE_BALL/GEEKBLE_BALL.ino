@@ -21,7 +21,7 @@ int16_t d_goal = 2650;
 
 uint16_t T = 0;
 uint16_t T_prev = 0;
-uint16_t dt = 0;
+uint16_t deltaTime = 0;
 
 uint16_t Period_ping = 10;
 uint16_t T_ping = 0;
@@ -72,7 +72,7 @@ void update(){  // echo pin state flip sensing
         T_1 += dead_time;
       }
     }
-  }else{ T_1 -= dt; }
+  }else{ T_1 -= deltaTime; }
 
   if(T_2 <= 0){
     if(s2 == LOW && s2_prev == HIGH) {
@@ -83,7 +83,7 @@ void update(){  // echo pin state flip sensing
         T_2 += dead_time;
       }
     }
-  }else{ T_2 -= dt; }
+  }else{ T_2 -= deltaTime; }
 
   if(T_3 <= 0){
     if(s3 == LOW && s3_prev == HIGH) {
@@ -94,7 +94,7 @@ void update(){  // echo pin state flip sensing
         T_3 += dead_time;
       }
     }
-  }else{ T_3 -= dt; }
+  }else{ T_3 -= deltaTime; }
 
   if(T_4 <= 0){
     if(s4 == LOW && s4_prev == HIGH) {
@@ -105,7 +105,7 @@ void update(){  // echo pin state flip sensing
         T_4 += dead_time;
       }
     }
-  }else{ T_4 -= dt; }
+  }else{ T_4 -= deltaTime; }
 
   if(T_5 <= 0){
     if(s5 == LOW && s5_prev == HIGH) {
@@ -116,7 +116,7 @@ void update(){  // echo pin state flip sensing
         T_5 += dead_time;
       }
     }
-  }else{ T_5 -= dt; }
+  }else{ T_5 -= deltaTime; }
 
   if(T_6 <= 0){
     if(s6 == LOW && s6_prev == HIGH) {
@@ -127,7 +127,7 @@ void update(){  // echo pin state flip sensing
         T_6 += dead_time;
       }
     }
-  }else{ T_6 -= dt; }
+  }else{ T_6 -= deltaTime; }
 
   if(T_7 <= 0){
     if(s7 == LOW && s7_prev == HIGH) {
@@ -138,7 +138,7 @@ void update(){  // echo pin state flip sensing
         T_7 += dead_time;
       }
     }
-  }else{ T_7 -= dt; }
+  }else{ T_7 -= deltaTime; }
 
   if(T_8 <= 0){
     if(s8 == LOW && s8_prev == HIGH) {
@@ -149,7 +149,7 @@ void update(){  // echo pin state flip sensing
         T_8 += dead_time;
       }
     }
-  }else{ T_8 -= dt; }
+  }else{ T_8 -= deltaTime; }
 
 
 }
@@ -194,12 +194,26 @@ void setup() {
     pinMode(TRIG_8, OUTPUT); pinMode(ECHO_8, INPUT);
 }
 
+// ---------------------------
+// 시리얼 버퍼 비우기
+// ---------------------------
+void flushSerialBuffer() {
+    while (Serial.available() > 0) {
+        Serial.read(); // 들어오는 데이터 읽고 버림
+    }
+}
+
 void loop() {
+  // ---------------------------
+  // 주기적으로 시리얼 버퍼 비우기
+  // ---------------------------
+  flushSerialBuffer();
+
   T_prev = T;
   T = millis();
-  dt = T - T_prev;
+  deltaTime = T - T_prev;
 
-  T_ping += dt;
+  T_ping += deltaTime;
   if(T_ping >= Period_ping){
     T_ping -= Period_ping;
     trig();
