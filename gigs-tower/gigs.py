@@ -108,8 +108,6 @@ class GIGS:
     # ============================================================================
     def setup_communications(self):
         self.serial_handler.setup()
-        self.serial_handler.start_monitoring()
-
 
     def wait_for_connections(self):
         waiting_shown = False
