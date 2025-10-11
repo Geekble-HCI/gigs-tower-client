@@ -143,8 +143,8 @@ class SoundManager:
         if not snd:
             print(f"[SOUND][WARN] SFX not found: {name}")
             return
-        # force=True로 가장 오래된 채널 강제 재사용
-        ch = pygame.mixer.find_channel(force=True)
+        
+        ch = pygame.mixer.find_channel()
         if ch is None:
             print("[SOUND][WARN] no free SFX channel")
             return
