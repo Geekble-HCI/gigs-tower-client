@@ -1,3 +1,4 @@
+import os
 import pygame
 import sys
 import threading
@@ -9,10 +10,14 @@ class InputHandler:
         self._gigs = gigs_instance
         self._action = action_handler
         self._key_mappings = {
-            pygame.K_a: self._handle_key_a,     # A키 → RFID Mock
+            pygame.K_a: self._handle_key_a,     # A키 → master RFID
+            pygame.K_u: self._handle_key_u,     # U키 → test RFID 1
+            pygame.K_i: self._handle_key_i,     # I키 → test RFID 2
+            pygame.K_o: self._handle_key_o,     # O키 → test RFID 3
             pygame.K_b: self._handle_key_b,     # B키 → 점수 10 Mock
             pygame.K_t: self._handle_key_t,     # T키 → Thread 상태 확인
-            pygame.K_ESCAPE: self._handle_escape,
+            pygame.K_r: self._handle_key_r,     # R키 → 재시작
+            pygame.K_ESCAPE: self._handle_escape, # ESC 키 -> 종료
         }
     
     def process_events(self):
@@ -45,17 +50,25 @@ class InputHandler:
         return True  # 매핑되지 않은 키는 무시하고 게임 계속 실행
     
     def _handle_key_a(self):
-        """A 키 처리 → RFID 이벤트"""
-        if getattr(self._gigs, 'test_mode', False):
-            mock_rfid = "QWER1234"  # 8자리 영숫자
-            print(f"[INPUT TEST] A key pressed -> mock RFID: {mock_rfid}")
-            ev = GameEvent(
-                kind=EventType.RFID_DETECTED,
-                source=InputSource.KEYBOARD,
-                raw=mock_rfid
-            )
-            self._action.on_rfid_detected(ev)
+        """A 키 처리 → 마스터 RFID 이벤트"""
+        self._emit_mock_rfid("QWER1234")  # 기존 master RFID 예시
         return True
+
+    def _handle_key_u(self):
+        """U 키 처리 → 테스트 RFID #1"""
+        self._emit_mock_rfid("TESTU123")
+        return True
+
+    def _handle_key_i(self):
+        """I 키 처리 → 테스트 RFID #2"""
+        self._emit_mock_rfid("TESTU456")
+        return True
+
+    def _handle_key_o(self):
+        """O 키 처리 → 테스트 RFID #3"""
+        self._emit_mock_rfid("TESTU789")
+        return True
+            
 
     def _handle_key_b(self):
         """B 키 처리 → 점수 이벤트 (10점)"""
@@ -97,6 +110,12 @@ class InputHandler:
                 print(f"[RESOURCE] Uptime: {stats['uptime_hours']:.2f}h")
                 print(f"{'='*60}\n")
         return True
+    
+    def _handle_key_r(self):
+        "R 키 처리 -> 파이썬 종료 후 재시작"
+        pygame.quit()
+        python = sys.executable  # 현재 파이썬 실행 파일 경로
+        os.execl(python, python, *sys.argv)  # 현재 스크립트 다시 실행
 
     def _handle_escape(self):
         """ESC 키 처리 (게임 종료)"""
@@ -129,3 +148,19 @@ class InputHandler:
         """
         if key in self._key_mappings:
             del self._key_mappings[key]
+
+    def _emit_mock_rfid(self, rfid: str) -> None:
+        """
+        공통 로직: mock rfid로 RFID_DETECTED 이벤트 생성하여 action에 전달.
+        Args:
+            rfid: 테스트용 RFID 문자열
+        """
+
+        if getattr(self._gigs, 'test_mode', False):
+            print(f"[INPUT TEST] Emitting mock RFID -> {rfid}")
+            ev = GameEvent(
+                kind=EventType.RFID_DETECTED,
+                source=InputSource.KEYBOARD,
+                raw=rfid,
+            )
+            self._action.on_rfid_detected(ev)
