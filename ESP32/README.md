@@ -4,19 +4,21 @@
 
 ## 💡 간단 요약
 
-- **rfid-start-handler**: 실제 게임기에 설치 (NFC 카드) - [사용 x]
-- **rfid-button-handler**: NFC 없이 개발/테스트할 때 (버튼) - [사용 x]
 - **button-rfid-test**: 버튼을 눌러 NFC 태그를 시뮬레이션
-- **button-score-test**: 버튼을 눌러 점수 전송
-- **rfid-start-handler-arduino**: 기존 ESP32 rfid-start-handler를 Arduino Nano용으로 변경
+- **keyboard-esc-enter**: 긱블 나노 활용하여 타워 운용에 필요한 키보드 esc키와 enter키를 입력하는 코드
+- **rfid-start-handler-arduino**: 실제 게임기에 설치 (NFC 카드 UID값 인식)
+
+## 📌 주의 사항
+
+- PN532보드는 로직레벨 3.3v이어서 ESP32계열 보드를 써야 코드가 작동.
+- 긱블 나노 기준으로 \_Legacy폴더에 읽기 쓰기 코드 업데이트 해 두었음.
 
 ## 📁 구성
 
 esp32/
-├── rfid-start-handler/ # NFC 카드로 게임 시작 (ESP32, 운영용)
-├── rfid-button-handler/ # 버튼으로 게임 시작 (ESP32, 테스트용)
+├── \_LEGACY/ # 기존 코드 아카이브, PN532 읽기 쓰기 작동 코드
 ├── button-rfid-test/ # NFC 카드 시뮬레이션용 더미 장치 (Arduino Mini)
-├── button-score-test/ # 점수 전송용 더미 장치 (Arduino Mini)
+├── keyboard-esc-enter/ # 키보드 esc키와 enter키를 입력하는 코드
 └── rfid-start-handler-arduino/ # rfid-start-handler Arduino Nano용
 
 ## 🎯 펌웨어 설명
