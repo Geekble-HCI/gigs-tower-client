@@ -143,6 +143,7 @@ class SoundManager:
         if not snd:
             print(f"[SOUND][WARN] SFX not found: {name}")
             return
+        
         ch = pygame.mixer.find_channel()
         if ch is None:
             print("[SOUND][WARN] no free SFX channel")

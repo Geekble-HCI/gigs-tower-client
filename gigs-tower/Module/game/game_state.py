@@ -6,6 +6,7 @@ import uuid
 from Module.interface.sound_manager import SoundManager
 from Module.config.game_config import GameConfig
 from Module.config.message_loader import message_loader
+from Module.utils.logger import Logger
 
 class GameState:
     INIT = "INIT"
@@ -44,10 +45,13 @@ class GameStateManager:
         self.game_type = game_type  # 게임 타입 저장
         self.error_thread = None  # 에러 메시지 타이머 스레드
         self.game_blocked = False  # 게임 차단 상태
-        self.score_provider = score_provider # 점수 조회 외부 콜백으로 DI 
+        self.score_provider = score_provider # 점수 조회 외부 콜백으로 DI
         self.last_score: int | float | None = None
         self.session_rfid: str | None = None  # 현재 세션(1판)에서 유지할 RFID
         self.session_nickname: str | None = None
+
+        # 협조적 스레드 종료를 위한 Event
+        self.stop_event = threading.Event()
 
     def set_session_rfid(self, rfid: str | None):
         self.session_rfid = rfid
@@ -130,7 +134,7 @@ class GameStateManager:
 
     def start_countdown(self,  *, force=False, nickname: str | None = None):
         if not force and self.game_blocked:
-            print("[GAME] Cannot start countdown: Game is blocked due to error")
+            Logger.warn("GAME", "Cannot start countdown: Game is blocked due to error")
             return
         
         def _resolve_name():
@@ -158,15 +162,21 @@ class GameStateManager:
                 self.start_game()
 
         if self.timer_thread and self.timer_thread.is_alive():
-            self.timer_thread.join(0)
+            Logger.debug("THREAD", "Stopping timer_thread...")
+            self.timer_thread.join(timeout=2.0)  # 최대 2초 대기
+            if self.timer_thread.is_alive():
+                Logger.warn("THREAD", "Timer thread cleanup timeout in start_countdown")
+            else:
+                Logger.debug("THREAD", "timer_thread stopped successfully")
         self.timer_thread = threading.Thread(target=countdown_timer)
         self.timer_thread.daemon = True
         self.timer_thread.start()
+        Logger.debug("THREAD", f"timer_thread (countdown) started (total active: {threading.active_count()})")
 
     def start_game(self, rfid: str | None = None):
         # 게임이 차단된 상태라면 게임을 시작하지 않음
         if self.game_blocked:
-            print("[GAME] Cannot start game: Game is blocked due to error")
+            Logger.warn("GAME", "Cannot start game: Game is blocked due to error")
             return
 
         self.current_state = GameState.PLAYING
@@ -191,13 +201,19 @@ class GameStateManager:
                     try:
                         score = int(self.score_provider())
                     except Exception as e:
-                        print(f"[GSM] score_provider failed: {e}")
+                        Logger.error("GSM", f"score_provider failed: {e}")
                 self.show_score(score)
 
         if self.play_thread and self.play_thread.is_alive():
-            self.play_thread.join(0)
+            Logger.debug("THREAD", "Stopping play_thread...")
+            self.play_thread.join(timeout=2.0)  # 최대 2초 대기
+            if self.play_thread.is_alive():
+                Logger.warn("THREAD", "Play thread cleanup timeout")
+            else:
+                Logger.debug("THREAD", "play_thread stopped successfully")
         self.play_thread = threading.Thread(target=play_timer, daemon=True)
         self.play_thread.start()
+        Logger.debug("THREAD", f"play_thread started (total active: {threading.active_count()})")
 
     def show_score(self, score: int | float, rfid: str | None = None):
         self.current_state = GameState.SCORE
@@ -211,16 +227,26 @@ class GameStateManager:
         self.screen_update_callback(message_loader.get_state_message('score', score=int(score)))
         
         def score_timer():
-            time.sleep(self.score_wait_time)  # Use the configured wait time
+            # Event 기반 대기로 즉시 종료 가능
+            if self.stop_event.wait(timeout=self.score_wait_time):
+                return  # stop_event가 설정되면 즉시 종료
             if self.current_state == GameState.SCORE:  # 여전히 SCORE 상태라면
                 self.show_waiting()  # WAITING 상태로 전환
                 self.state_change_callback(GameState.WAITING) # serial -4 전송
         
         # 이전 타이머가 있다면 정리
         if self.score_thread and self.score_thread.is_alive():
-            self.score_thread.join(0)
+            Logger.debug("THREAD", "Stopping score_thread...")
+            self.stop_event.set()  # 종료 신호 전송
+            self.score_thread.join(timeout=2.0)  # 최대 2초 대기
+            if self.score_thread.is_alive():
+                Logger.warn("THREAD", "Score thread cleanup timeout")
+            else:
+                Logger.debug("THREAD", "score_thread stopped successfully")
+            self.stop_event.clear()  # 다음 스레드를 위해 초기화
         self.score_thread = threading.Thread(target=score_timer, daemon=True)
         self.score_thread.start()
+        Logger.debug("THREAD", f"score_thread started (total active: {threading.active_count()})")
 
     def show_result(self, score: int | float, rfid: str | None = None):
         self.current_state = GameState.RESULT
@@ -232,15 +258,25 @@ class GameStateManager:
         self.screen_update_callback(message_loader.get_state_message('result', score=int(score)))
 
         def result_timer():
-            time.sleep(GameConfig.RESULT_DISPLAY_WAIT)  # 결과 표시 대기
+            # Event 기반 대기로 즉시 종료 가능
+            if self.stop_event.wait(timeout=GameConfig.RESULT_DISPLAY_WAIT):
+                return  # stop_event가 설정되면 즉시 종료
             if self.current_state == GameState.RESULT:
                 self.show_waiting()
         
         if self.result_thread and self.result_thread.is_alive():
-            self.result_thread.join(0)
+            Logger.debug("THREAD", "Stopping result_thread...")
+            self.stop_event.set()  # 종료 신호 전송
+            self.result_thread.join(timeout=2.0)  # 최대 2초 대기
+            if self.result_thread.is_alive():
+                Logger.warn("THREAD", "Result thread cleanup timeout")
+            else:
+                Logger.debug("THREAD", "result_thread stopped successfully")
+            self.stop_event.clear()  # 다음 스레드를 위해 초기화
         self.result_thread = threading.Thread(target=result_timer)
         self.result_thread.daemon = True
         self.result_thread.start()
+        Logger.debug("THREAD", f"result_thread started (total active: {threading.active_count()})")
 
     def show_waiting(self, publish_state=True):
         """게임 상태를 대기 상태로 초기화하고, 마지막 RFID 정보를 리셋."""
@@ -254,8 +290,14 @@ class GameStateManager:
 
         self.countdown = self.countdown_time  # Use the configured countdown time
         if self.timer_thread and self.timer_thread.is_alive():
-            self.timer_thread.join(0)
+            Logger.debug("THREAD", "Stopping timer_thread in show_waiting...")
+            self.timer_thread.join(timeout=2.0)  # 최대 2초 대기
+            if self.timer_thread.is_alive():
+                Logger.warn("THREAD", "Timer thread cleanup timeout in show_waiting")
+            else:
+                Logger.debug("THREAD", "timer_thread stopped successfully in show_waiting")
         self.timer_thread = None
+        Logger.debug("THREAD", f"timer_thread set to None (total active: {threading.active_count()})")
         self.sound_manager.stop_bgm()
 
         # message_loader를 사용하여 메시지 표시
@@ -304,7 +346,7 @@ class GameStateManager:
         # 현재 상태를 복구 대상으로 저장 (ERROR로 변경하기 전에)
         previous_state = recovery_state or self.current_state
 
-        print(f"[ERROR] Error in {previous_state} state: {error_type}")
+        Logger.error("ERROR", f"Error in {previous_state} state: {error_type}")
 
         # ERROR 상태로 전환
         self.current_state = GameState.ERROR
@@ -318,9 +360,11 @@ class GameStateManager:
 
         # 이전 상태로 복구
         def auto_recover():
-            time.sleep(GameConfig.ERROR_AUTO_RECOVERY_DELAY) 
+            # Event 기반 대기로 즉시 종료 가능
+            if self.stop_event.wait(timeout=GameConfig.ERROR_AUTO_RECOVERY_DELAY):
+                return  # stop_event가 설정되면 즉시 종료
             if self.current_state == GameState.ERROR:
-                print(f"[ERROR] Auto recovery: ERROR → {previous_state}")
+                Logger.info("ERROR", f"Auto recovery: ERROR → {previous_state}")
 
                 self.game_blocked = False  # 자동 복구 시 차단 해제
                 if previous_state == GameState.ENTER:
@@ -332,9 +376,17 @@ class GameStateManager:
                     self.show_waiting(publish_state=False)  # 에러 복구시 MQTT 발행 안함
 
         if self.error_thread and self.error_thread.is_alive():
-            self.error_thread.join(0)
+            Logger.debug("THREAD", "Stopping error_thread...")
+            self.stop_event.set()  # 종료 신호 전송
+            self.error_thread.join(timeout=2.0)  # 최대 2초 대기
+            if self.error_thread.is_alive():
+                Logger.warn("THREAD", "Error thread cleanup timeout")
+            else:
+                Logger.debug("THREAD", "error_thread stopped successfully")
+            self.stop_event.clear()  # 다음 스레드를 위해 초기화
         self.error_thread = threading.Thread(target=auto_recover, daemon=True)
         self.error_thread.start()
+        Logger.debug("THREAD", f"error_thread started (total active: {threading.active_count()})")
 
     def restore_state_display(self):
         """원래 상태 표시로 복구 (message_loader 사용)"""
@@ -372,13 +424,13 @@ class GameStateManager:
     def recover_from_error(self):
         """에러 상태에서 WAITING으로 수동 복구"""
         if self.current_state == GameState.ERROR:
-            print("[ERROR] Manual recovery: ERROR → WAITING")
+            Logger.info("ERROR", "Manual recovery: ERROR → WAITING")
             self.show_waiting()
-    
+
     def clear_error(self, publish_state: bool = False):
         """수동 해제(마스터 명령 등)"""
         self.game_blocked = False
-        print("[GameState] Error cleared")
+        Logger.info("GameState", "Error cleared")
         self.show_waiting(publish_state=publish_state)
     
     def lock_ui(self, seconds: float):

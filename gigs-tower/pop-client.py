@@ -1,6 +1,10 @@
+# import os
 import argparse
 from gigs import GIGS
 from Module.config.game_config import GameConfig
+
+# macOS TSM 경고 억제
+# os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Samyang Pop Game Client')

@@ -9,8 +9,8 @@ from Module.utils.net_utils import (
     udp_guess_local_ip,
 )
 
-CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".cache")
-DEFAULT_CACHE = os.path.join(CACHE_DIR, "last_broker_ip.txt")
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DEFAULT_CACHE = os.path.join(PROJECT_ROOT, "last_broker_ip.txt")
 
 class MqttBrokerScanner:
     """

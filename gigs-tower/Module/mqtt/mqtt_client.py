@@ -69,6 +69,9 @@ class MQTTClient:
         self._conn_event = threading.Event()
         self._loop_started = False
 
+        # 협조적 종료를 위한 Event
+        self._stop_event = threading.Event()
+
      # -------- 외부 API --------
     def add_subscription(self, topic, qos=1):
         """구독 처리할 토픽들 등록"""
@@ -104,7 +107,10 @@ class MQTTClient:
                     print("[MQTT] Initial connection failed: Retry limit exceeded")
                     return False
                 delay = min(max_backoff, base_backoff * (2 ** attempt))
-                time.sleep(delay)
+                # Event 기반 대기로 즉시 중단 가능
+                if self._stop_event.wait(timeout=delay):
+                    print("[MQTT] Connection attempt cancelled")
+                    return False
                 attempt += 1
                 continue
 
@@ -139,13 +145,29 @@ class MQTTClient:
 
             delay = min(max_backoff, base_backoff * (2 ** attempt))
             print(f"[MQTT] Waiting for retry {delay:.1f}s")
-            time.sleep(delay)
+            # Event 기반 대기로 즉시 중단 가능
+            if self._stop_event.wait(timeout=delay):
+                print("[MQTT] Connection retry cancelled")
+                return False
             attempt += 1
 
     def disconnect(self):
-        """정상 종료(남은 네트워크 작업 정리 후 쓰레드 종료)"""
-        self.client.loop_stop()
-        self.client.disconnect()
+        """정상 종료(남은 네트워크 작업 정리 후 쓰레드 종료) - 예외 안전성 보장"""
+        # 진행 중인 연결 시도 중단
+        self._stop_event.set()
+
+        try:
+            self.client.loop_stop()
+        except Exception as e:
+            print(f"[MQTT] loop_stop exception: {e}")
+
+        try:
+            self.client.disconnect()
+        except Exception as e:
+            print(f"[MQTT] disconnect exception: {e}")
+
+        # 다음 연결을 위해 이벤트 초기화
+        self._stop_event.clear()
 
     def publish(self, topic, payload, qos=1, retain=False, ttl_seconds: int | None = None):
         """
