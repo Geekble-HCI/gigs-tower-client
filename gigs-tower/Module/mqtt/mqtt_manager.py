@@ -3,14 +3,14 @@ import time
 from Module.game.game_state import GameStateManager
 from .mqtt_scanner import MqttBrokerScanner
 from .mqtt_client import MQTTClient
-from Module.command.command_handler import CommandDispatcher, CommandType, GameCommand, MuteCommand, PingCommand, VolumeCommand
+from Module.command.command_handler import CommandDispatcher, CommandType, GameCommand, MuteCommand, PingCommand, VolumeCommand, ProcessCommand
 from Module.config.message_loader import MessageLoader, message_loader
 
 
 class MQTTManager:
     """MQTT 연결 및 명령 처리를 관리하는 클래스"""
     
-    def __init__(self, mqtt_broker_ip=None, device_id=None, game_type=None, sound_manager=None, game_handler=None, action_handler=None):
+    def __init__(self, mqtt_broker_ip=None, device_id=None, game_type=None, sound_manager=None, game_handler=None, action_handler=None, process_handler=None):
         """
         MQTTManager 초기화
         Args:
@@ -22,7 +22,6 @@ class MQTTManager:
         self.command_handler = None
         self.game_type = game_type
         self.mqtt_broker_ip = mqtt_broker_ip
-        self.game_handler = game_handler
         self.action_handler = action_handler
 
         if self.mqtt_broker_ip == None:
@@ -35,7 +34,7 @@ class MQTTManager:
             device_id = game_type
         
         self._setup_mqtt_client(self.mqtt_broker_ip, device_id)
-        self._setup_command_handler(sound_manager, game_handler)
+        self._setup_command_handler(sound_manager, game_handler, process_handler)
 
         # 연결 완료를 블로킹으로 보장
         connected = self.mqtt_client.connect_blocking(
@@ -87,7 +86,7 @@ class MQTTManager:
         self.mqtt_client.set_message_callback(self._handle_mqtt_message)
 
     
-    def _setup_command_handler(self, sound_manager, game_handler):
+    def _setup_command_handler(self, sound_manager, game_handler, process_handler):
         """MQTT 명령 핸들러 설정"""
         if self.mqtt_client and sound_manager:
             self.command_handler = CommandDispatcher()
@@ -107,6 +106,11 @@ class MQTTManager:
                 ], MuteCommand(sound_manager))
             
             self.command_handler.register(CommandType.PING, PingCommand(self))
+
+            self.command_handler.register([
+                CommandType.PROCESS_STOP,
+                CommandType.PROCESS_RESTART
+                ], ProcessCommand(process_handler))
 
     
     def publish_device_register(self):

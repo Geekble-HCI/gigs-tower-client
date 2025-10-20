@@ -3,12 +3,14 @@ import pygame
 import sys
 import threading
 from Module.game.events import GameEvent, EventType, InputSource
+from Module.process.process_handler import ProcessHandler
 
 
 class InputHandler:
-    def __init__(self, gigs_instance, action_handler):
+    def __init__(self, gigs_instance, action_handler, process_handler):
         self._gigs = gigs_instance
         self._action = action_handler
+        self._process = process_handler
         self._key_mappings = {
             pygame.K_a: self._handle_key_a,     # A키 → master RFID
             pygame.K_u: self._handle_key_u,     # U키 → test RFID 1
@@ -19,11 +21,11 @@ class InputHandler:
             pygame.K_r: self._handle_key_r,     # R키 → 재시작
             pygame.K_ESCAPE: self._handle_escape, # ESC 키 -> 종료
         }
-    
+
     def process_events(self):
         """
         pygame 이벤트를 처리하고 게임 실행 상태를 반환
-        
+
         Returns:
             bool: 게임이 계속 실행되어야 하면 True, 종료해야 하면 False
         """
@@ -32,6 +34,14 @@ class InputHandler:
                 return self._quit_game()
             elif event.type == pygame.KEYDOWN:
                 return self._handle_keydown(event.key)
+            # ProcessHandler에서 post한 커스텀 이벤트 처리
+            elif event.type == ProcessHandler.PROCESS_RESTART_EVENT:
+                print("[InputHandler] Received RESTART event from MQTT")
+                self._handle_key_r()  # 재시작 로직 재사용
+                return False
+            elif event.type == ProcessHandler.PROCESS_STOP_EVENT:
+                print("[InputHandler] Received STOP event from MQTT")
+                return self._quit_game()  # 종료 로직 재사용
         return True  # 게임 계속 실행
 
     
@@ -113,9 +123,10 @@ class InputHandler:
     
     def _handle_key_r(self):
         "R 키 처리 -> 파이썬 종료 후 재시작"
-        pygame.quit()
-        python = sys.executable  # 현재 파이썬 실행 파일 경로
-        os.execl(python, python, *sys.argv)  # 현재 스크립트 다시 실행
+        self._process.restart_process() 
+        # pygame.quit()
+        # python = sys.executable  # 현재 파이썬 실행 파일 경로
+        # os.execl(python, python, *sys.argv)  # 현재 스크립트 다시 실행
 
     def _handle_escape(self):
         """ESC 키 처리 (게임 종료)"""
@@ -125,9 +136,8 @@ class InputHandler:
     
     def _quit_game(self):
         """게임 종료 처리"""
-        pygame.quit()
-        sys.exit()
-        return False  # 이 라인은 실제로는 실행되지 않음 (sys.exit() 때문)
+        self._process.stop_process()
+        # return False  # 이 라인은 실제로는 실행되지 않음 (sys.exit() 때문)
     
     def add_key_mapping(self, key, handler_func):
         """

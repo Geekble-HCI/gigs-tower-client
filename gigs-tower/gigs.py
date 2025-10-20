@@ -11,6 +11,7 @@ from Module.mqtt.mqtt_manager import MQTTManager
 from Module.game.game_action_handler import GameActionHandler
 from Module.game.events import EventType
 from Module.config.game_config import GameConfig
+from Module.process.process_handler import ProcessHandler
 
 # 리소스 모니터링 및 로깅
 from Module.utils.resource_monitor import get_monitor
@@ -56,6 +57,7 @@ class GIGS:
         self.sound_manager = SoundManager(game_type)
         self.screen_manager = ScreenManager()
         self.score_manager = ScoreManager()
+        self.process_handler = ProcessHandler(cleanup_callback=pygame.quit)
 
         self.game_state = GameStateManager(
             screen_update_callback=self.screen_manager.update_screen,
@@ -71,14 +73,14 @@ class GIGS:
         self.action = GameActionHandler(gsm=self.game_state, gigs_instance=self)
 
         # 입력/명령 핸들러에 action 주입
-        self.input_handler = InputHandler(self, action_handler=self.action)
+        self.input_handler = InputHandler(self, action_handler=self.action, process_handler=self.process_handler)
         self.game_handler = GameHandler(self, action_handler=self.action)
 
         # Serial은 on_event 콜백으로 라우팅
         self.serial_handler = SerialHandler(self, on_event=lambda ev: self._route_serial_event(self.action, ev))
 
         # MQTT 매니저 생성 - GameHandler를 전달 (MQTT 명령 처리용)
-        self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, self.game_handler, self.action)
+        self.mqtt_manager = MQTTManager(mqtt_broker, device_id, game_type, self.sound_manager, self.game_handler, self.action, self.process_handler)
 
         # MQTT 클라이언트를 GameStateManager에 "사후 주입"
         client = self.mqtt_manager.get_client()
@@ -91,9 +93,6 @@ class GIGS:
 
         # MQTTManager에 GameStateManager 연결 (에러 메시지 처리를 위해 필요)
         self.mqtt_manager.set_game_state_manager(self.game_state)
-
-        # 모드 플래그
-        self.test_mode = test_mode
 
         self.init_mode(show_enter, show_exit, test_mode)
 

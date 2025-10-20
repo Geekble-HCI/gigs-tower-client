@@ -11,6 +11,9 @@ class CommandType(str, Enum):
     MUTE_OFF = "mute_off"   # 음소거 해제
     MUTE_TOGGLE = "mute_toggle"
 
+    PROCESS_STOP = 'process_stop' # 파이썬 종료
+    PROCESS_RESTART = 'process_restart' # 파이썬 재시작
+
     GAME_START = "game_start"
     GAME_STOP = "game_stop"
     GAME_RESET = "game_reset"
@@ -89,6 +92,37 @@ class GameCommand(CommandInterface):
 
         except Exception as e:
             print(f"[GameCmd] Failed to change Game Status: {e}")
+            return False
+
+class ProcessCommand(CommandInterface):
+    def __init__(self, process_handler):
+        """
+        Args:
+            process_handler: ProcessHandler 인스턴스
+        """
+        self.process_handler = process_handler
+    
+    def execute(self, cmd: CommandType, value: Any = None, 
+                timestamp: str = "", device_id: str = "") -> bool:
+        try:
+            if cmd == CommandType.PROCESS_RESTART:
+                print(f"[ProcessCmd] Restart requested by {device_id}")
+                self.process_handler.restart_process()
+                # 이후 코드는 실행되지 않음
+
+            elif cmd == CommandType.PROCESS_STOP:
+                print(f"[ProcessCmd] Stop requested by {device_id}")
+                self.process_handler.stop_process()
+                # 이후 코드는 실행되지 않음
+            
+            else:
+                print(f"[ProcessCmd] Unknown process command: {cmd}")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            print(f"[ProcessCmd] Process command error: {e}")
             return False
 
 
