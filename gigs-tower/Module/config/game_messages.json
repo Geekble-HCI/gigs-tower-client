@@ -1,10 +1,10 @@
 {
   "game_titles": {
-    "1": { "title": "헬시 버거", "subtitle": "챌린지" },
-    "2": { "title": "꿀잠 방해꾼", "subtitle": "OUT!" },
-    "3": { "title": "불태워!", "subtitle": "칼로링머신" },
-    "4": { "title": "볼볼볼", "subtitle": "골인!" },
-    "5": { "title": "바이오데이터", "subtitle": "에어시소" },
+    "1": { "title": "책.책.책을", "subtitle": "모읍시다!" },
+    "2": { "title": "전주 비빔밥", "subtitle": "만들기" },
+    "3": { "title": "로잉머신", "subtitle": "당기기!" },
+    "4": { "title": "서커스 공", "subtitle": "던지기!" },
+    "5": { "title": "막걸리", "subtitle": "흔들기!" },
     "6": { "title": "슛잇!", "subtitle": "무빙 골대" },
     "7": { "title": "입장 화면" },
     "8": { "title": "퇴장 화면" }
