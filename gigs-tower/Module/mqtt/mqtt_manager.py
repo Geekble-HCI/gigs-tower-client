@@ -131,7 +131,7 @@ class MQTTManager:
         self.mqtt_client.publish(
             topic, 
             payload, 
-            qos=1, 
+            qos=2, 
             retain=True, # 메세지 영속성 설정
             ttl_seconds=3600  # 메세지 만료시간 설정: 1시간
         )
